@@ -24,8 +24,11 @@ jobs:
     - name: Test
       run: go test -covermode atomic -coverprofile=./lcov.info -v ./...
 
+    - name: Install goveralls
+      run: go install github.com/mattn/goveralls@latest
+
     - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@1.1.3
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./lcov.info
+      uses: shogo82148/actions-goveralls@v1
+      env:
+        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: goveralls -coverprofile=./lcov.info -service=github
