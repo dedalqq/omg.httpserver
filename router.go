@@ -43,8 +43,8 @@ func (r *Router) Default(h Handler) *Router {
 	return r
 }
 
-func (r *Router) SubRoute(subPath string) SubRouter {
-	return SubRouter{
+func (r *Router) SubRoute(subPath string) *SubRouter {
+	return &SubRouter{
 		r:       r,
 		subPath: subPath,
 	}

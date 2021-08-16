@@ -24,12 +24,14 @@ func handleHttpRequest(ctx context.Context, router Router, r *http.Request) inte
 		handlerFunc = ep.Post
 	case http.MethodPut:
 		handlerFunc = ep.Put
+	case http.MethodPatch:
+		handlerFunc = ep.Patch
 	case http.MethodDelete:
 		handlerFunc = ep.Delete
 	}
 
 	if handlerFunc == nil {
-		return NewError(http.StatusNotFound, "Method not exist")
+		return NewError(http.StatusNotFound, "Method not supported")
 	}
 
 	for _, m := range ep.Middlewares {

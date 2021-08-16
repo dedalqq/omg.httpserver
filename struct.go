@@ -29,6 +29,7 @@ type Handler struct {
 	Post   HandlerFunc
 	Put    HandlerFunc
 	Delete HandlerFunc
+	Patch  HandlerFunc
 }
 
 type ResponseWithCode interface {
