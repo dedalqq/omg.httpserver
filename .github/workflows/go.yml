@@ -28,7 +28,6 @@ jobs:
       run: go install github.com/mattn/goveralls@latest
 
     - name: Coveralls GitHub Action
-      uses: shogo82148/actions-goveralls@v1
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: goveralls -coverprofile=./lcov.info -service=github
