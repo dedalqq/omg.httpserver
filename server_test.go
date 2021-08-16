@@ -128,42 +128,34 @@ func (l *listener) Addr() net.Addr {
 	return nil
 }
 
-func TestServer(t *testing.T) {
+type serverRunnerFunc func(*http.Server)
 
-	router := NewRouter()
-
-	router.Add("/omg", Handler{
-		Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
-			return nil
-		},
-	})
-
+func testRunner(t *testing.T, f func(context.Context, serverRunnerFunc, *http.Client) error) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	server := NewServer(ctx, ":80", router, nil)
 
 	l, client := newListenerAndClient()
 
-	var wg sync.WaitGroup
+	var (
+		err    error
+		wg     sync.WaitGroup
+		server *http.Server
+	)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	serverRunner := func(s *http.Server) {
+		server = s
 
-		err := server.Serve(l)
-		if err != nil && err.Error() != "http: Server closed" {
-			t.Fatalf("Error: [%v]", err)
-		}
-	}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-	r, _ := http.NewRequest("GET", "http://localhost/omg", nil)
-
-	resp, err := client.Do(r)
-	if err != nil {
-		t.Fatalf("Error: [%v]", err)
+			err = server.Serve(l)
+		}()
 	}
 
-	fmt.Println(resp.Status)
+	e := f(ctx, serverRunner, client)
+	if e != nil {
+		t.Fatalf("Error: [%v]", err)
+	}
 
 	cancel()
 	err = server.Close()
@@ -172,4 +164,33 @@ func TestServer(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	if err != nil && err.Error() != "http: Server closed" {
+		t.Fatalf("Error: [%v]", err)
+	}
+}
+
+func TestServer(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		router.Add("/test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				return NewError(http.StatusTeapot, "teapot")
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, nil))
+
+		resp, err := cl.Get("http://localhost/test")
+		if err != nil {
+			return err
+		}
+
+		if resp.Status != "418 I'm a teapot" {
+			t.Fail()
+		}
+
+		return nil
+	})
 }
