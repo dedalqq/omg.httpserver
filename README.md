@@ -1,5 +1,7 @@
 # omg.httpServer
 
+[![Go](https://github.com/dedalqq/omg.httpServer/actions/workflows/go.yml/badge.svg)](https://github.com/dedalqq/omg.httpServer/actions/workflows/go.yml)
+
 ## Example
 
 ```go
