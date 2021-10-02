@@ -10,7 +10,7 @@ import (
 func handleHttpRequest(ctx context.Context, router Router, r *http.Request) interface{} {
 	ep, args := router.get(r.URL.Path)
 	if ep == nil {
-		return NewError(http.StatusNotFound, "Method not exist")
+		return NewError(http.StatusNotFound, "method not exist")
 	}
 
 	var (
@@ -28,10 +28,8 @@ func handleHttpRequest(ctx context.Context, router Router, r *http.Request) inte
 		handlerFunc = ep.Patch
 	case http.MethodDelete:
 		handlerFunc = ep.Delete
-	}
-
-	if handlerFunc == nil {
-		return NewError(http.StatusNotFound, "Method not supported")
+	default:
+		return NewError(http.StatusNotFound, "method not supported")
 	}
 
 	for _, m := range ep.Middlewares {
@@ -62,12 +60,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.log.Error(err)
 	}
 
-	if r, ok := result.(ResponseWithCode); ok {
-		w.WriteHeader(r.Code())
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-
 	if r, ok := result.(ResponseWithContentType); ok {
 		w.Header().Set("Content-Type", r.ContentType())
 	} else {
@@ -76,6 +68,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			w.Header().Set("Content-Type", "application/json")
 		}
+	}
+
+	if r, ok := result.(ResponseWithCode); ok {
+		w.WriteHeader(r.Code())
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 
 	switch r := result.(type) {
