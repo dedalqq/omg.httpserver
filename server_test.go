@@ -295,6 +295,31 @@ func TestNotFound(t *testing.T) {
 	})
 }
 
+func TestPanic(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		router.Add("/test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				panic("just panic")
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, nil))
+
+		resp, err := cl.Get("http://localhost/test")
+		if err != nil {
+			return err
+		}
+
+		if resp.Status != "500 Internal Server Error" {
+			t.Fail()
+		}
+
+		return nil
+	})
+}
+
 func TestMethodNotSupported(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter()

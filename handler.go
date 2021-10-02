@@ -28,7 +28,9 @@ func handleHttpRequest(ctx context.Context, router Router, r *http.Request) inte
 		handlerFunc = ep.Patch
 	case http.MethodDelete:
 		handlerFunc = ep.Delete
-	default:
+	}
+
+	if handlerFunc == nil {
 		return NewError(http.StatusNotFound, "method not supported")
 	}
 
