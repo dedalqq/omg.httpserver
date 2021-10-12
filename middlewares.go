@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/pkg/errors"
@@ -40,6 +41,8 @@ func newPanicHandlerMiddleware(log Logger) requestMiddleware {
 				if r == nil {
 					return
 				}
+
+				debug.PrintStack()
 
 				switch e := r.(type) {
 				case error:
