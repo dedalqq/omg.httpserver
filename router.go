@@ -24,7 +24,7 @@ func NewRouter() Router {
 }
 
 func (r *Router) Add(path string, h Handler) *Router {
-	path = strings.ReplaceAll(path, "{any}", "(.+)")
+	path = strings.ReplaceAll(path, "{any}", "([^/]+)")
 	path = strings.ReplaceAll(path, "{uuid}", "([0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12})")
 
 	reg, err := regexp.Compile(fmt.Sprintf("^%s$", path))

@@ -253,8 +253,10 @@ func TestHandlerArgs(t *testing.T) {
 
 		var arguments []string
 
-		router.Add("/test/{any}", Handler{
+		router.Add("/first-test/{any}", Handler{
 			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				t.Fail()
+
 				return nil
 			},
 		})
