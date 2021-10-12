@@ -1,6 +1,6 @@
 # omg.httpServer
 
-[![Go](https://github.com/dedalqq/omg.httpServer/actions/workflows/go.yml/badge.svg)](https://github.com/dedalqq/omg.httpServer/actions/workflows/go.yml)
+[![Go](https://github.com/dedalqq/omg.httpserver/actions/workflows/go.yml/badge.svg)](https://github.com/dedalqq/omg.httpserver/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/dedalqq/omg.httpServer/badge.svg?branch=master)](https://coveralls.io/github/dedalqq/omg.httpServer?branch=master)
 
 ## Example
