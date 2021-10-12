@@ -43,7 +43,7 @@ func newPanicHandlerMiddleware(log Logger) requestMiddleware {
 
 				switch e := r.(type) {
 				case error:
-					log.Error(e)
+					log.Error(errors.Wrapf(e, "Panic"))
 				default:
 					log.Error(errors.Errorf("Panic: %v", e))
 				}

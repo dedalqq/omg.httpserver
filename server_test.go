@@ -255,6 +255,12 @@ func TestHandlerArgs(t *testing.T) {
 
 		router.Add("/test/{any}", Handler{
 			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				return nil
+			},
+		})
+
+		router.Add("/first-test/{any}/second-test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
 				arguments = args
 
 				return NewError(http.StatusTeapot, "teapot")
@@ -263,7 +269,7 @@ func TestHandlerArgs(t *testing.T) {
 
 		run(NewServer(ctx, ":80", router, nil))
 
-		_, err := cl.Get("http://localhost/test/some-test-data")
+		_, err := cl.Get("http://localhost/first-test/some-test-data/second-test")
 		if err != nil {
 			return err
 		}
