@@ -482,3 +482,38 @@ func TestAllMethods(t *testing.T) {
 		return nil
 	})
 }
+
+func TestResponse(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		router.Add("/test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				return NewResponse(struct {
+					Data string `json:"data"`
+				}{"test"}).SetCode(http.StatusTeapot).SetContentType("application/test-type").AddCookie(&http.Cookie{
+					Name:  "name",
+					Value: "value",
+				})
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, nil))
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
+		resp, err := cl.Do(req)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		if resp.Status != "418 I'm a teapot" {
+			t.Fail()
+		}
+
+		if resp.Header.Get("Content-Type") != "application/test-type" {
+			t.Fail()
+		}
+
+		return nil
+	})
+}

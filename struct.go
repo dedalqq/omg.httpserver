@@ -76,3 +76,35 @@ func (e Error) Error() string {
 func (e Error) Code() int {
 	return e.HttpCode
 }
+
+type Response struct {
+	Body interface{}
+
+	Code        int
+	ContentType string
+	Cookie      []*http.Cookie
+}
+
+func NewResponse(body interface{}) *Response {
+	return &Response{
+		Body: body,
+	}
+}
+
+func (r *Response) SetCode(code int) *Response {
+	r.Code = code
+
+	return r
+}
+
+func (r *Response) SetContentType(contentType string) *Response {
+	r.ContentType = contentType
+
+	return r
+}
+
+func (r *Response) AddCookie(c *http.Cookie) *Response {
+	r.Cookie = append(r.Cookie, c)
+
+	return r
+}

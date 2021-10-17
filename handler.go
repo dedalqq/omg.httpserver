@@ -62,23 +62,43 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.log.Error(err)
 	}
 
-	if r, ok := result.(ResponseWithContentType); ok {
-		w.Header().Set("Content-Type", r.ContentType())
+	responseBody := result
+
+	if r, ok := result.(*Response); ok {
+		responseBody = r.Body
+
+		if r.ContentType != "" {
+			w.Header().Set("Content-Type", r.ContentType)
+		}
+
+		for _, c := range r.Cookie {
+			http.SetCookie(w, c)
+		}
+
+		if r.Code != 0 {
+			w.WriteHeader(r.Code)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 	} else {
-		switch result.(type) {
-		case io.Reader:
-		default:
-			w.Header().Set("Content-Type", "application/json")
+		if r, ok := result.(ResponseWithContentType); ok {
+			w.Header().Set("Content-Type", r.ContentType())
+		} else {
+			switch result.(type) {
+			case io.Reader:
+			default:
+				w.Header().Set("Content-Type", "application/json")
+			}
+		}
+
+		if r, ok := result.(ResponseWithCode); ok {
+			w.WriteHeader(r.Code())
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	}
 
-	if r, ok := result.(ResponseWithCode); ok {
-		w.WriteHeader(r.Code())
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
-
-	switch r := result.(type) {
+	switch r := responseBody.(type) {
 	case io.Reader:
 		_, err = io.Copy(w, r)
 	default:
