@@ -64,38 +64,34 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	responseBody := result
 
-	if r, ok := result.(*Response); ok {
-		responseBody = r.Body
+	if r, ok := result.(ResponseWithBody); ok {
+		responseBody = r.Body()
+	}
 
-		if r.ContentType != "" {
-			w.Header().Set("Content-Type", r.ContentType)
+	if r, ok := result.(ResponseWithContentEncoding); ok {
+		w.Header().Set("Content-Encoding", r.ContentEncoding())
+	}
+
+	if r, ok := result.(ResponseWithContentType); ok {
+		w.Header().Set("Content-Type", r.ContentType())
+	} else {
+		switch result.(type) {
+		case io.Reader:
+		default:
+			w.Header().Set("Content-Type", "application/json")
 		}
+	}
 
-		for _, c := range r.Cookie {
+	if r, ok := result.(ResponseWithCookie); ok {
+		for _, c := range r.Cookie() {
 			http.SetCookie(w, c)
 		}
+	}
 
-		if r.Code != 0 {
-			w.WriteHeader(r.Code)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
+	if r, ok := result.(ResponseWithCode); ok {
+		w.WriteHeader(r.Code())
 	} else {
-		if r, ok := result.(ResponseWithContentType); ok {
-			w.Header().Set("Content-Type", r.ContentType())
-		} else {
-			switch result.(type) {
-			case io.Reader:
-			default:
-				w.Header().Set("Content-Type", "application/json")
-			}
-		}
-
-		if r, ok := result.(ResponseWithCode); ok {
-			w.WriteHeader(r.Code())
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
+		w.WriteHeader(http.StatusOK)
 	}
 
 	switch r := responseBody.(type) {

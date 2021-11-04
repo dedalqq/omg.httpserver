@@ -40,6 +40,18 @@ type ResponseWithContentType interface {
 	ContentType() string
 }
 
+type ResponseWithContentEncoding interface {
+	ContentEncoding() string
+}
+
+type ResponseWithCookie interface {
+	Cookie() []*http.Cookie
+}
+
+type ResponseWithBody interface {
+	Body() interface{}
+}
+
 type Error struct {
 	cause     error
 	HttpCode  int    `json:"code"`
@@ -78,33 +90,60 @@ func (e Error) Code() int {
 }
 
 type Response struct {
-	Body interface{}
+	body interface{}
 
-	Code        int
-	ContentType string
-	Cookie      []*http.Cookie
+	code            int
+	contentType     string
+	contentEncoding string
+	cookie          []*http.Cookie
 }
 
 func NewResponse(body interface{}) *Response {
 	return &Response{
-		Body: body,
+		body: body,
 	}
 }
 
+func (r *Response) Body() interface{} {
+	return r.body
+}
+
 func (r *Response) SetCode(code int) *Response {
-	r.Code = code
+	r.code = code
 
 	return r
+}
+
+func (r *Response) Code() int {
+	return r.code
 }
 
 func (r *Response) SetContentType(contentType string) *Response {
-	r.ContentType = contentType
+	r.contentType = contentType
 
 	return r
 }
 
-func (r *Response) AddCookie(c *http.Cookie) *Response {
-	r.Cookie = append(r.Cookie, c)
+func (r *Response) ContentType() string {
+	return r.contentType
+}
+
+func (r *Response) SetContentEncoding(contentEncoding string) *Response {
+	r.contentEncoding = contentEncoding
 
 	return r
+}
+
+func (r *Response) ContentEncoding() string {
+	return r.contentEncoding
+}
+
+func (r *Response) AddCookie(c *http.Cookie) *Response {
+	r.cookie = append(r.cookie, c)
+
+	return r
+}
+
+func (r *Response) Cookie() []*http.Cookie {
+	return r.cookie
 }
