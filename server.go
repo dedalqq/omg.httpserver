@@ -5,14 +5,14 @@ import (
 	"net/http"
 )
 
-func NewServer(ctx context.Context, addr string, r Router, log Logger) *http.Server {
+func NewServer(ctx context.Context, addr string, r Router, gzip bool, log Logger) *http.Server {
 	if log == nil {
 		log = &emptyLogger{}
 	}
 
 	return &http.Server{
 		Addr: addr,
-		Handler: &handler{
+		Handler: &httpHandler{
 			ctx: ctx,
 			middlewares: []requestMiddleware{
 				newLogMiddleware(log),
@@ -20,6 +20,7 @@ func NewServer(ctx context.Context, addr string, r Router, log Logger) *http.Ser
 			},
 			router: r,
 			log:    log,
+			gzip:   gzip,
 		},
 	}
 }

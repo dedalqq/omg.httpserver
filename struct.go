@@ -40,16 +40,8 @@ type ResponseWithContentType interface {
 	ContentType() string
 }
 
-type ResponseWithContentEncoding interface {
-	ContentEncoding() string
-}
-
 type ResponseWithCookie interface {
 	Cookie() []*http.Cookie
-}
-
-type ResponseWithBody interface {
-	Body() interface{}
 }
 
 type Error struct {
@@ -92,20 +84,15 @@ func (e Error) Code() int {
 type Response struct {
 	body interface{}
 
-	code            int
-	contentType     string
-	contentEncoding string
-	cookie          []*http.Cookie
+	code        int
+	contentType string
+	cookie      []*http.Cookie
 }
 
 func NewResponse(body interface{}) *Response {
 	return &Response{
 		body: body,
 	}
-}
-
-func (r *Response) Body() interface{} {
-	return r.body
 }
 
 func (r *Response) SetCode(code int) *Response {
@@ -126,16 +113,6 @@ func (r *Response) SetContentType(contentType string) *Response {
 
 func (r *Response) ContentType() string {
 	return r.contentType
-}
-
-func (r *Response) SetContentEncoding(contentEncoding string) *Response {
-	r.contentEncoding = contentEncoding
-
-	return r
-}
-
-func (r *Response) ContentEncoding() string {
-	return r.contentEncoding
 }
 
 func (r *Response) AddCookie(c *http.Cookie) *Response {

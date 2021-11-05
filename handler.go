@@ -1,10 +1,12 @@
 package httpserver
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func handleHttpRequest(ctx context.Context, router Router, r *http.Request) interface{} {
@@ -41,14 +43,15 @@ func handleHttpRequest(ctx context.Context, router Router, r *http.Request) inte
 	return handlerFunc(ctx, r, args)
 }
 
-type handler struct {
+type httpHandler struct {
 	ctx         context.Context
 	middlewares []requestMiddleware
 	router      Router
 	log         Logger
+	gzip        bool
 }
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler := handleHttpRequest
 
 	for _, m := range h.middlewares {
@@ -60,20 +63,17 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := r.Body.Close()
 	if err != nil {
 		h.log.Error(err)
+		return
 	}
 
-	responseBody := result
+	gzipAccept := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 
-	if r, ok := result.(ResponseWithBody); ok {
-		responseBody = r.Body()
+	if gzipAccept && h.gzip {
+		w.Header().Set("Content-Encoding", "gzip")
 	}
 
-	if r, ok := result.(ResponseWithContentEncoding); ok {
-		w.Header().Set("Content-Encoding", r.ContentEncoding())
-	}
-
-	if r, ok := result.(ResponseWithContentType); ok {
-		w.Header().Set("Content-Type", r.ContentType())
+	if rs, ok := result.(ResponseWithContentType); ok {
+		w.Header().Set("Content-Type", rs.ContentType())
 	} else {
 		switch result.(type) {
 		case io.Reader:
@@ -82,8 +82,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if r, ok := result.(ResponseWithCookie); ok {
-		for _, c := range r.Cookie() {
+	if rs, ok := result.(ResponseWithCookie); ok {
+		for _, c := range rs.Cookie() {
 			http.SetCookie(w, c)
 		}
 	}
@@ -94,14 +94,32 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	switch r := responseBody.(type) {
+	if gzipAccept && h.gzip {
+		gw := gzip.NewWriter(w)
+		err = WriteBody(gw, result)
+		if err != nil {
+			panic("failed to write buffer")
+		}
+
+		err = gw.Close()
+	} else {
+		err = WriteBody(w, result)
+	}
+
+	if err != nil {
+		h.log.Error(err)
+	}
+}
+
+func WriteBody(w io.Writer, body interface{}) error {
+	var err error
+
+	switch r := body.(type) {
 	case io.Reader:
 		_, err = io.Copy(w, r)
 	default:
 		err = json.NewEncoder(w).Encode(r)
 	}
 
-	if err != nil {
-		h.log.Error(err)
-	}
+	return err
 }

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -182,7 +183,7 @@ func TestServer(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -207,7 +208,7 @@ func TestDefaultResponse(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -232,7 +233,7 @@ func TestDefaultHandler(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/some-path")
 		if err != nil {
@@ -269,7 +270,7 @@ func TestHandlerArgs(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		_, err := cl.Get("http://localhost/first-test/some-test-data/second-test")
 		if err != nil {
@@ -288,7 +289,7 @@ func TestNotFound(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter()
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -313,7 +314,7 @@ func TestPanic(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -338,7 +339,7 @@ func TestMethodNotSupported(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -377,7 +378,7 @@ func TestMiddleware(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		_, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -402,7 +403,7 @@ func TestSubRoute(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		resp, err := cl.Get("http://localhost/test/sub-test")
 		if err != nil {
@@ -455,10 +456,14 @@ func TestAllMethods(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		doRequest := func(method string, url string) {
 			req, err := http.NewRequest(method, url, nil)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+
 			resp, err := cl.Do(req)
 			if err != nil {
 				t.Fatal(err.Error())
@@ -498,9 +503,13 @@ func TestResponse(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, nil))
+		run(NewServer(ctx, ":80", router, false, nil))
 
 		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
 		resp, err := cl.Do(req)
 		if err != nil {
 			t.Fatal(err.Error())
@@ -513,6 +522,52 @@ func TestResponse(t *testing.T) {
 		if resp.Header.Get("Content-Type") != "application/test-type" {
 			t.Fail()
 		}
+
+		return nil
+	})
+}
+
+func TestGZIP(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		router.Add("/test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				return strings.NewReader("the some test text")
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, true, nil))
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		req.Header.Set("Accept-Encoding", "gzip")
+
+		resp, err := cl.Do(req)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		if resp.Status != "200 OK" {
+			t.Fail()
+		}
+
+		if resp.Header.Get("Content-Encoding") != "gzip" {
+			t.Fail()
+		}
+
+		//data, err := ioutil.ReadAll(resp.Body)
+		//if err != nil {
+		//	t.Fail()
+		//}
+
+		//if string(data) != "the some test text" {
+		//	fmt.Println(string(data))
+		//	t.Fail()
+		//}
 
 		return nil
 	})
