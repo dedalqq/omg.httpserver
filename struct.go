@@ -32,6 +32,10 @@ type Handler struct {
 	Patch  HandlerFunc
 }
 
+type ResponseWithBody interface {
+	Body() interface{}
+}
+
 type ResponseWithCode interface {
 	Code() int
 }
@@ -93,6 +97,10 @@ func NewResponse(body interface{}) *Response {
 	return &Response{
 		body: body,
 	}
+}
+
+func (r *Response) Body() interface{} {
+	return r.body
 }
 
 func (r *Response) SetCode(code int) *Response {

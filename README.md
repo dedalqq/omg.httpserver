@@ -2,6 +2,9 @@
 
 [![Go](https://github.com/dedalqq/omg.httpserver/actions/workflows/go.yml/badge.svg)](https://github.com/dedalqq/omg.httpserver/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/dedalqq/omg.httpServer/badge.svg?branch=master)](https://coveralls.io/github/dedalqq/omg.httpServer?branch=master)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dedalqq/omg.httpserver.svg)](https://pkg.go.dev/github.com/dedalqq/omg.httpserver)
+
+omg.httpServer is the simple http handler for a standard http server. Also, its library contains the router for manage http requests. This library is best for creating API based  on http request.
 
 ## Example
 
@@ -24,6 +27,6 @@ func main() {
 		},
 	})
 
-	httpServer.NewServer(context.Background(), ":80", router, nil).ListenAndServe()
+	httpServer.NewServer(context.Background(), ":80", httpserver.Options{}).ListenAndServe()
 }
 ```

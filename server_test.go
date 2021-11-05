@@ -3,9 +3,11 @@ package httpserver
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -183,7 +185,7 @@ func TestServer(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -208,7 +210,7 @@ func TestDefaultResponse(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -233,7 +235,7 @@ func TestDefaultHandler(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/some-path")
 		if err != nil {
@@ -270,7 +272,7 @@ func TestHandlerArgs(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		_, err := cl.Get("http://localhost/first-test/some-test-data/second-test")
 		if err != nil {
@@ -289,7 +291,7 @@ func TestNotFound(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter()
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -314,7 +316,7 @@ func TestPanic(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -339,7 +341,7 @@ func TestMethodNotSupported(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -378,7 +380,7 @@ func TestMiddleware(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		_, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -403,7 +405,7 @@ func TestSubRoute(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test/sub-test")
 		if err != nil {
@@ -456,7 +458,7 @@ func TestAllMethods(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		doRequest := func(method string, url string) {
 			req, err := http.NewRequest(method, url, nil)
@@ -503,7 +505,7 @@ func TestResponse(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, false, nil))
+		run(NewServer(ctx, ":80", router, Options{}))
 
 		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
 		if err != nil {
@@ -523,6 +525,15 @@ func TestResponse(t *testing.T) {
 			t.Fail()
 		}
 
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fail()
+		}
+
+		if string(data) != "{\"data\":\"test\"}\n" {
+			t.Fail()
+		}
+
 		return nil
 	})
 }
@@ -537,7 +548,7 @@ func TestGZIP(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, true, nil))
+		run(NewServer(ctx, ":80", router, Options{SupportGZIP: true}))
 
 		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
 		if err != nil {
@@ -559,15 +570,20 @@ func TestGZIP(t *testing.T) {
 			t.Fail()
 		}
 
-		//data, err := ioutil.ReadAll(resp.Body)
-		//if err != nil {
-		//	t.Fail()
-		//}
+		r, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			t.Fail()
+		}
 
-		//if string(data) != "the some test text" {
-		//	fmt.Println(string(data))
-		//	t.Fail()
-		//}
+		data, err := ioutil.ReadAll(r)
+		if err != nil {
+			t.Fail()
+		}
+
+		if string(data) != "the some test text" {
+			fmt.Println(string(data))
+			t.Fail()
+		}
 
 		return nil
 	})

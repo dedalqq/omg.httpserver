@@ -5,7 +5,16 @@ import (
 	"net/http"
 )
 
-func NewServer(ctx context.Context, addr string, r Router, gzip bool, log Logger) *http.Server {
+// Options for omg http handlers
+type Options struct {
+	SupportGZIP bool
+	Logger      Logger
+}
+
+// NewServer creates and return new http server which the contains a omg http handler
+func NewServer(ctx context.Context, addr string, r Router, opt Options) *http.Server {
+	log := opt.Logger
+
 	if log == nil {
 		log = &emptyLogger{}
 	}
@@ -20,7 +29,7 @@ func NewServer(ctx context.Context, addr string, r Router, gzip bool, log Logger
 			},
 			router: r,
 			log:    log,
-			gzip:   gzip,
+			gzip:   opt.SupportGZIP,
 		},
 	}
 }

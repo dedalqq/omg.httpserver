@@ -51,6 +51,7 @@ type httpHandler struct {
 	gzip        bool
 }
 
+// ServeHTTP is a Handler responds to an HTTP request.
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler := handleHttpRequest
 
@@ -94,16 +95,21 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 
+	body := result
+	if r, ok := result.(ResponseWithBody); ok {
+		body = r.Body()
+	}
+
 	if gzipAccept && h.gzip {
 		gw := gzip.NewWriter(w)
-		err = WriteBody(gw, result)
+		err = writeBody(gw, body)
 		if err != nil {
 			panic("failed to write buffer")
 		}
 
 		err = gw.Close()
 	} else {
-		err = WriteBody(w, result)
+		err = writeBody(w, body)
 	}
 
 	if err != nil {
@@ -111,7 +117,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func WriteBody(w io.Writer, body interface{}) error {
+func writeBody(w io.Writer, body interface{}) error {
 	var err error
 
 	switch r := body.(type) {
