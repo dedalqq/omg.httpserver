@@ -9,10 +9,17 @@ import (
 	"strings"
 )
 
-func handleHttpRequest(ctx context.Context, router Router, r *http.Request) interface{} {
+func handleHttpRequest(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 	ep, args := router.get(r.URL.Path)
 	if ep == nil {
-		return NewError(http.StatusNotFound, "method not exist")
+		return NewError(http.StatusNotFound, "method not exist"), true
+	}
+
+	if ep.StdHandler != nil {
+		ctn := ep.StdHandler(ctx, w, r, args)
+		if !ctn {
+			return nil, false
+		}
 	}
 
 	var (
@@ -33,14 +40,14 @@ func handleHttpRequest(ctx context.Context, router Router, r *http.Request) inte
 	}
 
 	if handlerFunc == nil {
-		return NewError(http.StatusNotFound, "method not supported")
+		return NewError(http.StatusNotFound, "method not supported"), true
 	}
 
 	for _, m := range ep.Middlewares {
 		handlerFunc = m(handlerFunc)
 	}
 
-	return handlerFunc(ctx, r, args)
+	return handlerFunc(ctx, r, args), true
 }
 
 type httpHandler struct {
@@ -59,7 +66,10 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		handler = m(handler)
 	}
 
-	result := handler(h.ctx, h.router, r)
+	result, ctn := handler(h.ctx, h.router, w, r)
+	if !ctn {
+		return
+	}
 
 	err := r.Body.Close()
 	if err != nil {

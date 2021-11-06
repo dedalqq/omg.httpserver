@@ -588,3 +588,30 @@ func TestGZIP(t *testing.T) {
 		return nil
 	})
 }
+
+func TestStdHandler(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		router.Add("/test", Handler{
+			StdHandler: func(ctx context.Context, w http.ResponseWriter, r *http.Request, args []string) bool {
+				w.WriteHeader(418)
+
+				return false
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, Options{}))
+
+		resp, err := cl.Get("http://localhost/test")
+		if err != nil {
+			return err
+		}
+
+		if resp.Status != "418 I'm a teapot" {
+			t.Fail()
+		}
+
+		return nil
+	})
+}

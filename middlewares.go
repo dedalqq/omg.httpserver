@@ -10,9 +10,9 @@ import (
 
 func newLogMiddleware(log Logger) requestMiddleware {
 	return func(h requestHandler) requestHandler {
-		return func(ctx context.Context, router Router, r *http.Request) interface{} {
+		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 			start := time.Now()
-			result := h(ctx, router, r)
+			result, ctn := h(ctx, router, w, r)
 			duration := time.Since(start)
 
 			code := http.StatusOK
@@ -26,14 +26,14 @@ func newLogMiddleware(log Logger) requestMiddleware {
 				log.Error(err) // TODO print only one
 			}
 
-			return result
+			return result, ctn
 		}
 	}
 }
 
 func newPanicHandlerMiddleware(log Logger) requestMiddleware {
 	return func(h requestHandler) requestHandler {
-		return func(ctx context.Context, router Router, r *http.Request) (res interface{}) {
+		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (res interface{}, ctn bool) {
 			defer func() {
 				r := recover()
 
@@ -49,9 +49,10 @@ func newPanicHandlerMiddleware(log Logger) requestMiddleware {
 				}
 
 				res = NewError(http.StatusInternalServerError, "internal error")
+				ctn = true
 			}()
 
-			res = h(ctx, router, r)
+			res, ctn = h(ctx, router, w, r)
 
 			return
 		}

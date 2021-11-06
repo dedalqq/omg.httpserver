@@ -16,13 +16,15 @@ type emptyLogger struct{}
 func (*emptyLogger) Info(string, ...interface{}) {}
 func (*emptyLogger) Error(error)                 {}
 
-type requestHandler func(ctx context.Context, router Router, r *http.Request) interface{}
+type requestHandler func(context.Context, Router, http.ResponseWriter, *http.Request) (interface{}, bool)
 type requestMiddleware func(requestHandler) requestHandler
 
 type HandlerFunc func(context.Context, *http.Request, []string) interface{}
 type HandlerMiddleware func(HandlerFunc) HandlerFunc
 
 type Handler struct {
+	StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
+
 	Middlewares []HandlerMiddleware
 
 	Get    HandlerFunc
