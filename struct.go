@@ -21,9 +21,10 @@ type requestMiddleware func(requestHandler) requestHandler
 
 type HandlerFunc func(context.Context, *http.Request, []string) interface{}
 type HandlerMiddleware func(HandlerFunc) HandlerFunc
+type StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
 
 type Handler struct {
-	StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
+	StdHandler StdHandler
 
 	Middlewares []HandlerMiddleware
 
