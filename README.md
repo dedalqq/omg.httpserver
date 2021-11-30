@@ -15,18 +15,18 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/dedalqq/omg.httpServer"
+	httpserver "github.com/dedalqq/omg.httpserver"
 )
 
 func main() {
-	router := httpServer.NewRouter()
+	router := httpserver.NewRouter()
 
-	router.Add("/test", httpServer.Handler{
+	router.Add("/test", httpserver.Handler{
 		Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
 			return "hello world!"
 		},
 	})
 
-	httpServer.NewServer(context.Background(), ":80", httpserver.Options{}).ListenAndServe()
+	httpserver.NewServer(context.Background(), ":80", router, httpserver.Options{}).ListenAndServe()
 }
 ```
