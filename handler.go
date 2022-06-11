@@ -83,14 +83,12 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
 
-	if rs, ok := result.(ResponseWithContentType); ok {
-		w.Header().Set("Content-Type", rs.ContentType())
-	} else {
-		switch result.(type) {
-		case io.Reader:
-		default:
-			w.Header().Set("Content-Type", "application/json")
-		}
+	switch r := result.(type) {
+	case ResponseWithContentType:
+		w.Header().Set("Content-Type", r.ContentType())
+	case io.Reader:
+	default:
+		w.Header().Set("Content-Type", "application/json")
 	}
 
 	if rs, ok := result.(ResponseWithCookie); ok {
@@ -99,9 +97,12 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if r, ok := result.(ResponseWithCode); ok {
+	switch r := result.(type) {
+	case ResponseWithCode:
 		w.WriteHeader(r.Code())
-	} else {
+	case error:
+		w.WriteHeader(http.StatusInternalServerError)
+	default:
 		w.WriteHeader(http.StatusOK)
 	}
 
