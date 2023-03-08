@@ -99,6 +99,7 @@ type Response struct {
 func NewResponse(body interface{}) *Response {
 	return &Response{
 		body: body,
+		code: http.StatusOK,
 	}
 }
 

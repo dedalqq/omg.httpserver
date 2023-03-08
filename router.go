@@ -7,9 +7,14 @@ import (
 	"strings"
 )
 
+type route struct {
+	pattern *regexp.Regexp
+	handler Handler
+}
+
 // Router is a router object
 type Router struct {
-	routes       map[*regexp.Regexp]Handler
+	routes       []route
 	defaultRoute *Handler
 }
 
@@ -21,9 +26,7 @@ type SubRouter struct {
 
 // NewRouter creates and returns new router
 func NewRouter() Router {
-	return Router{
-		routes: make(map[*regexp.Regexp]Handler),
-	}
+	return Router{}
 }
 
 // Add add new router rule in to router object for handler
@@ -36,7 +39,10 @@ func (r *Router) Add(path string, h Handler) *Router {
 		panic(err)
 	}
 
-	r.routes[reg] = h
+	r.routes = append(r.routes, route{
+		pattern: reg,
+		handler: h,
+	})
 
 	return r
 }
@@ -64,9 +70,9 @@ func (r *SubRouter) Add(subPath string, h Handler) *SubRouter {
 }
 
 func (r *Router) get(path string) (*Handler, []string) {
-	for r, h := range r.routes {
-		if res := r.FindStringSubmatch(path); len(res) > 0 {
-			return &h, res[1:]
+	for _, r := range r.routes {
+		if res := r.pattern.FindStringSubmatch(path); len(res) > 0 {
+			return &r.handler, res[1:]
 		}
 	}
 
