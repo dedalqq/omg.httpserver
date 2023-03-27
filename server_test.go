@@ -250,7 +250,7 @@ func TestDefaultHandler(t *testing.T) {
 	})
 }
 
-func TestHandlerArgs(t *testing.T) {
+func TestHandlerAnyArgs(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter()
 
@@ -280,6 +280,43 @@ func TestHandlerArgs(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(arguments, []string{"some-test-data"}) {
+			t.Fail()
+		}
+
+		return nil
+	})
+}
+
+func TestHandlerIntArgs(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter()
+
+		var arguments []string
+
+		router.Add("/first-test/{any}", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				t.Fail()
+
+				return nil
+			},
+		})
+
+		router.Add("/first-test/{int}/second-test", Handler{
+			Get: func(ctx context.Context, r *http.Request, args []string) interface{} {
+				arguments = args
+
+				return NewError(http.StatusTeapot, "teapot")
+			},
+		})
+
+		run(NewServer(ctx, ":80", router, Options{}))
+
+		_, err := cl.Get("http://localhost/first-test/123/second-test")
+		if err != nil {
+			return err
+		}
+
+		if !reflect.DeepEqual(arguments, []string{"123"}) {
 			t.Fail()
 		}
 
