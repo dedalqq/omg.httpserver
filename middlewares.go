@@ -9,7 +9,7 @@ import (
 )
 
 func NewLogMiddleware(log Logger) RequestMiddleware {
-	return func(h requestHandler) requestHandler {
+	return func(h RequestHandler) RequestHandler {
 		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 			start := time.Now()
 			result, ctn := h(ctx, router, w, r)
@@ -32,7 +32,7 @@ func NewLogMiddleware(log Logger) RequestMiddleware {
 }
 
 func NewPanicHandlerMiddleware(log Logger) RequestMiddleware {
-	return func(h requestHandler) requestHandler {
+	return func(h RequestHandler) RequestHandler {
 		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (res interface{}, ctn bool) {
 			defer func() {
 				r := recover()

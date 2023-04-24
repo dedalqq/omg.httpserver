@@ -16,8 +16,8 @@ type emptyLogger struct{}
 func (*emptyLogger) Info(string, ...interface{}) {}
 func (*emptyLogger) Error(error)                 {}
 
-type requestHandler func(context.Context, Router, http.ResponseWriter, *http.Request) (interface{}, bool)
-type RequestMiddleware func(requestHandler) requestHandler
+type RequestHandler func(context.Context, Router, http.ResponseWriter, *http.Request) (interface{}, bool)
+type RequestMiddleware func(RequestHandler) RequestHandler
 
 type HandlerFunc func(context.Context, *http.Request, []string) interface{}
 type HandlerMiddleware func(HandlerFunc) HandlerFunc
