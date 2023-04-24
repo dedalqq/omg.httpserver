@@ -353,7 +353,7 @@ func TestPanic(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(ctx, ":80", router, Options{}, NewPanicHandlerMiddleware(&emptyLogger{})))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {

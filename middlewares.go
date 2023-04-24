@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newLogMiddleware(log Logger) requestMiddleware {
+func NewLogMiddleware(log Logger) RequestMiddleware {
 	return func(h requestHandler) requestHandler {
 		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 			start := time.Now()
@@ -31,7 +31,7 @@ func newLogMiddleware(log Logger) requestMiddleware {
 	}
 }
 
-func newPanicHandlerMiddleware(log Logger) requestMiddleware {
+func NewPanicHandlerMiddleware(log Logger) RequestMiddleware {
 	return func(h requestHandler) requestHandler {
 		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (res interface{}, ctn bool) {
 			defer func() {

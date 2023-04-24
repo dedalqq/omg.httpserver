@@ -17,7 +17,7 @@ func (*emptyLogger) Info(string, ...interface{}) {}
 func (*emptyLogger) Error(error)                 {}
 
 type requestHandler func(context.Context, Router, http.ResponseWriter, *http.Request) (interface{}, bool)
-type requestMiddleware func(requestHandler) requestHandler
+type RequestMiddleware func(requestHandler) requestHandler
 
 type HandlerFunc func(context.Context, *http.Request, []string) interface{}
 type HandlerMiddleware func(HandlerFunc) HandlerFunc

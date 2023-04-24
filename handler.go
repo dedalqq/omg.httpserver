@@ -52,7 +52,7 @@ func handleHttpRequest(ctx context.Context, router Router, w http.ResponseWriter
 
 type httpHandler struct {
 	ctx         context.Context
-	middlewares []requestMiddleware
+	middlewares []RequestMiddleware
 	router      Router
 	log         Logger
 	gzip        bool
