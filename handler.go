@@ -116,6 +116,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = writeBody(gw, body)
 		if err != nil {
 			h.log.Error(err)
+			return
 		}
 
 		err = gw.Close()
