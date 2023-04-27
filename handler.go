@@ -115,14 +115,18 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		gw := gzip.NewWriter(w)
 		err = writeBody(gw, body)
 		if err != nil {
-			panic("failed to write buffer")
+			h.log.Error(err)
 		}
 
 		err = gw.Close()
-	} else {
-		err = writeBody(w, body)
+		if err != nil {
+			h.log.Error(err)
+		}
+
+		return
 	}
 
+	err = writeBody(w, body)
 	if err != nil {
 		h.log.Error(err)
 	}
