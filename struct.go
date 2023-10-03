@@ -16,23 +16,34 @@ type emptyLogger struct{}
 func (*emptyLogger) Info(string, ...interface{}) {}
 func (*emptyLogger) Error(error)                 {}
 
-type RequestHandler func(context.Context, Router, http.ResponseWriter, *http.Request) (interface{}, bool)
-type RequestMiddleware func(RequestHandler) RequestHandler
+type AuthFunc[A any] func(*http.Request) (A, error)
 
-type HandlerFunc func(context.Context, *http.Request, []string) interface{}
-type HandlerMiddleware func(HandlerFunc) HandlerFunc
+type RequestHandler[C, A any] func(context.Context, Router[C, A], C, AuthFunc[A], http.ResponseWriter, *http.Request) (interface{}, bool)
+type RequestMiddleware[C, A any] func(RequestHandler[C, A]) RequestHandler[C, A]
+
+type HandlerFunc[C, A any] func(context.Context, C, A, *http.Request, []string) interface{}
+type HandlerMiddleware[C, A any] func(HandlerFunc[C, A]) HandlerFunc[C, A]
+
 type StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
 
-type Handler struct {
+type apiDescription struct {
+}
+
+type MethodHandler[C, A any] struct {
+	handlerFunc HandlerFunc[C, A]
+	description apiDescription
+}
+
+type Handler[C, A any] struct {
 	StdHandler StdHandler
 
-	Middlewares []HandlerMiddleware
+	Middlewares []HandlerMiddleware[C, A]
 
-	Get    HandlerFunc
-	Post   HandlerFunc
-	Put    HandlerFunc
-	Delete HandlerFunc
-	Patch  HandlerFunc
+	Get    *MethodHandler[C, A]
+	Post   *MethodHandler[C, A]
+	Put    *MethodHandler[C, A]
+	Delete *MethodHandler[C, A]
+	Patch  *MethodHandler[C, A]
 }
 
 type ResponseWithBody interface {
@@ -86,53 +97,4 @@ func (e Error) Error() string {
 
 func (e Error) Code() int {
 	return e.HttpCode
-}
-
-type Response struct {
-	body interface{}
-
-	code        int
-	contentType string
-	cookie      []*http.Cookie
-}
-
-func NewResponse(body interface{}) *Response {
-	return &Response{
-		body: body,
-		code: http.StatusOK,
-	}
-}
-
-func (r *Response) Body() interface{} {
-	return r.body
-}
-
-func (r *Response) SetCode(code int) *Response {
-	r.code = code
-
-	return r
-}
-
-func (r *Response) Code() int {
-	return r.code
-}
-
-func (r *Response) SetContentType(contentType string) *Response {
-	r.contentType = contentType
-
-	return r
-}
-
-func (r *Response) ContentType() string {
-	return r.contentType
-}
-
-func (r *Response) AddCookie(c *http.Cookie) *Response {
-	r.cookie = append(r.cookie, c)
-
-	return r
-}
-
-func (r *Response) Cookie() []*http.Cookie {
-	return r.cookie
 }

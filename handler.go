@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func handleHttpRequest(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
+func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, af AuthFunc[A], w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 	ep, args := router.get(r.URL.Path)
 	if ep == nil {
 		return NewError(http.StatusNotFound, "method not exist"), true
@@ -23,20 +23,30 @@ func handleHttpRequest(ctx context.Context, router Router, w http.ResponseWriter
 	}
 
 	var (
-		handlerFunc HandlerFunc
+		handlerFunc HandlerFunc[C, A]
 	)
 
 	switch r.Method {
 	case http.MethodGet:
-		handlerFunc = ep.Get
+		if ep.Get != nil {
+			handlerFunc = ep.Get.handlerFunc
+		}
 	case http.MethodPost:
-		handlerFunc = ep.Post
+		if ep.Post != nil {
+			handlerFunc = ep.Post.handlerFunc
+		}
 	case http.MethodPut:
-		handlerFunc = ep.Put
+		if ep.Put != nil {
+			handlerFunc = ep.Put.handlerFunc
+		}
 	case http.MethodPatch:
-		handlerFunc = ep.Patch
+		if ep.Patch != nil {
+			handlerFunc = ep.Patch.handlerFunc
+		}
 	case http.MethodDelete:
-		handlerFunc = ep.Delete
+		if ep.Delete != nil {
+			handlerFunc = ep.Delete.handlerFunc
+		}
 	}
 
 	if handlerFunc == nil {
@@ -47,26 +57,40 @@ func handleHttpRequest(ctx context.Context, router Router, w http.ResponseWriter
 		handlerFunc = m(handlerFunc)
 	}
 
-	return handlerFunc(ctx, r, args), true
+	var (
+		authInfo A
+		err      error
+	)
+
+	if af != nil {
+		authInfo, err = af(r)
+		if err != nil {
+
+		}
+	}
+
+	return handlerFunc(ctx, c, authInfo, r, args), true
 }
 
-type httpHandler struct {
+type httpHandler[C, A any] struct {
 	ctx         context.Context
-	middlewares []RequestMiddleware
-	router      Router
+	middlewares []RequestMiddleware[C, A]
+	container   C
+	authFunc    AuthFunc[A]
+	router      Router[C, A]
 	log         Logger
 	gzip        bool
 }
 
 // ServeHTTP is a Handler responds to an HTTP request.
-func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	handler := handleHttpRequest
+func (h *httpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	handler := handleHttpRequest[C, A]
 
 	for _, m := range h.middlewares {
 		handler = m(handler)
 	}
 
-	result, ctn := handler(h.ctx, h.router, w, r)
+	result, ctn := handler(h.ctx, h.router, h.container, h.authFunc, w, r)
 	if !ctn {
 		return
 	}

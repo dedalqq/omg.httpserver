@@ -8,11 +8,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewLogMiddleware(log Logger) RequestMiddleware {
-	return func(h RequestHandler) RequestHandler {
-		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (interface{}, bool) {
+func NewLogMiddleware[C, A any](log Logger) RequestMiddleware[C, A] {
+	return func(h RequestHandler[C, A]) RequestHandler[C, A] {
+		return func(ctx context.Context, rr Router[C, A], c C, af AuthFunc[A], w http.ResponseWriter, r *http.Request) (interface{}, bool) {
 			start := time.Now()
-			result, ctn := h(ctx, router, w, r)
+			result, ctn := h(ctx, rr, c, af, w, r)
 			duration := time.Since(start)
 
 			code := http.StatusOK
@@ -31,9 +31,9 @@ func NewLogMiddleware(log Logger) RequestMiddleware {
 	}
 }
 
-func NewPanicHandlerMiddleware(log Logger) RequestMiddleware {
-	return func(h RequestHandler) RequestHandler {
-		return func(ctx context.Context, router Router, w http.ResponseWriter, r *http.Request) (res interface{}, ctn bool) {
+func NewPanicHandlerMiddleware[C, A any](log Logger) RequestMiddleware[C, A] {
+	return func(h RequestHandler[C, A]) RequestHandler[C, A] {
+		return func(ctx context.Context, rr Router[C, A], c C, af AuthFunc[A], w http.ResponseWriter, r *http.Request) (res interface{}, ctn bool) {
 			defer func() {
 				r := recover()
 
@@ -52,7 +52,7 @@ func NewPanicHandlerMiddleware(log Logger) RequestMiddleware {
 				ctn = true
 			}()
 
-			res, ctn = h(ctx, router, w, r)
+			res, ctn = h(ctx, rr, c, af, w, r)
 
 			return
 		}

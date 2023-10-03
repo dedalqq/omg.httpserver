@@ -7,30 +7,30 @@ import (
 	"strings"
 )
 
-type route struct {
+type route[C, A any] struct {
 	pattern *regexp.Regexp
-	handler Handler
+	handler Handler[C, A]
 }
 
 // Router is a router object
-type Router struct {
-	routes       []route
-	defaultRoute *Handler
+type Router[C, A any] struct {
+	routes       []route[C, A]
+	defaultRoute *Handler[C, A]
 }
 
 // SubRouter is a sub router object
-type SubRouter struct {
-	r       *Router
+type SubRouter[C, A any] struct {
+	r       *Router[C, A]
 	subPath string
 }
 
 // NewRouter creates and returns new router
-func NewRouter() Router {
-	return Router{}
+func NewRouter[C, A any]() Router[C, A] {
+	return Router[C, A]{}
 }
 
-// Add add new router rule in to router object for handler
-func (r *Router) Add(path string, h Handler) *Router {
+// Add new router rule in to router object for handler
+func (r *Router[C, A]) Add(path string, h Handler[C, A]) *Router[C, A] {
 	path = strings.ReplaceAll(path, "{any}", "([^/]+)")
 	path = strings.ReplaceAll(path, "{int}", "(\\d+)")
 	path = strings.ReplaceAll(path, "{uuid}", "([0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12})")
@@ -40,7 +40,7 @@ func (r *Router) Add(path string, h Handler) *Router {
 		panic(err)
 	}
 
-	r.routes = append(r.routes, route{
+	r.routes = append(r.routes, route[C, A]{
 		pattern: reg,
 		handler: h,
 	})
@@ -49,28 +49,28 @@ func (r *Router) Add(path string, h Handler) *Router {
 }
 
 // Default sets a default handler for handle request if route rule was not found
-func (r *Router) Default(h Handler) *Router {
+func (r *Router[C, A]) Default(h Handler[C, A]) *Router[C, A] {
 	r.defaultRoute = &h
 
 	return r
 }
 
 // SubRoute returns new sub route object for add rules in sub root
-func (r *Router) SubRoute(subPath string) *SubRouter {
-	return &SubRouter{
+func (r *Router[C, A]) SubRoute(subPath string) *SubRouter[C, A] {
+	return &SubRouter[C, A]{
 		r:       r,
 		subPath: subPath,
 	}
 }
 
-// Add add new router rule in to router object for handler
-func (r *SubRouter) Add(subPath string, h Handler) *SubRouter {
+// Add new router rule in to router object for handler
+func (r *SubRouter[C, A]) Add(subPath string, h Handler[C, A]) *SubRouter[C, A] {
 	r.r.Add(path.Join(r.subPath, subPath), h)
 
 	return r
 }
 
-func (r *Router) get(path string) (*Handler, []string) {
+func (r *Router[C, A]) get(path string) (*Handler[C, A], []string) {
 	for _, r := range r.routes {
 		if res := r.pattern.FindStringSubmatch(path); len(res) > 0 {
 			return &r.handler, res[1:]

@@ -12,7 +12,7 @@ type Options struct {
 }
 
 // NewServer creates and return new http server which the contains a omg http handler
-func NewServer(ctx context.Context, addr string, r Router, opt Options, middlewares ...RequestMiddleware) *http.Server {
+func NewServer[C, A any](ctx context.Context, addr string, r Router[C, A], opt Options, middlewares ...RequestMiddleware[C, A]) *http.Server {
 	log := opt.Logger
 
 	if log == nil {
@@ -21,7 +21,7 @@ func NewServer(ctx context.Context, addr string, r Router, opt Options, middlewa
 
 	return &http.Server{
 		Addr: addr,
-		Handler: &httpHandler{
+		Handler: &httpHandler[C, A]{
 			ctx:         ctx,
 			middlewares: middlewares,
 			router:      r,
