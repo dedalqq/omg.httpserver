@@ -27,6 +27,7 @@ type HandlerMiddleware[C, A any] func(HandlerFunc[C, A]) HandlerFunc[C, A]
 type StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
 
 type apiDescription struct {
+	authRequired bool
 }
 
 type MethodHandler[C, A any] struct {
@@ -63,7 +64,8 @@ type ResponseWithCookie interface {
 }
 
 type Error struct {
-	cause     error
+	cause error
+
 	HttpCode  int    `json:"code"`
 	ErrorText string `json:"error"`
 }

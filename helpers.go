@@ -12,7 +12,13 @@ import (
 	"strings"
 )
 
-type Option[C, A any] func(*MethodHandler[C, A])
+type Option func(*apiDescription)
+
+func AuthRequired() Option {
+	return func(d *apiDescription) {
+		d.authRequired = true
+	}
+}
 
 type fieldHandler struct {
 	tag string
@@ -225,7 +231,7 @@ func parseRequest(ctx context.Context, data interface{}, r *http.Request, args [
 	return nil
 }
 
-func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), options ...Option[C, A]) *MethodHandler[C, A] {
+func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), options ...Option) *MethodHandler[C, A] {
 	handler := &MethodHandler[C, A]{
 		handlerFunc: func(ctx context.Context, c C, a A, r *http.Request, args []string) interface{} {
 			var request RQ
@@ -248,7 +254,7 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 	}
 
 	for _, o := range options {
-		o(handler)
+		o(&handler.description)
 	}
 
 	return handler

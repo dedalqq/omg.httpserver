@@ -22,40 +22,44 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 		}
 	}
 
-	var (
-		handlerFunc HandlerFunc[C, A]
-	)
+	var handler *MethodHandler[C, A]
 
 	switch r.Method {
 	case http.MethodGet:
 		if ep.Get != nil {
-			handlerFunc = ep.Get.handlerFunc
+			handler = ep.Get
 		}
 	case http.MethodPost:
 		if ep.Post != nil {
-			handlerFunc = ep.Post.handlerFunc
+			handler = ep.Post
 		}
 	case http.MethodPut:
 		if ep.Put != nil {
-			handlerFunc = ep.Put.handlerFunc
+			handler = ep.Put
 		}
 	case http.MethodPatch:
 		if ep.Patch != nil {
-			handlerFunc = ep.Patch.handlerFunc
+			handler = ep.Patch
 		}
 	case http.MethodDelete:
 		if ep.Delete != nil {
-			handlerFunc = ep.Delete.handlerFunc
+			handler = ep.Delete
 		}
 	}
 
-	if handlerFunc == nil {
+	if handler == nil {
 		return NewError(http.StatusNotFound, "method not supported"), true
 	}
+
+	handlerFunc := handler.handlerFunc
 
 	for _, m := range ep.Middlewares {
 		handlerFunc = m(handlerFunc)
 	}
+
+	// if handler.description.authRequired && af == nil {
+	// 	return NewError(http.StatusInternalServerError, "method not supported"), true
+	// }
 
 	var (
 		authInfo A
@@ -64,8 +68,8 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 
 	if af != nil {
 		authInfo, err = af(r)
-		if err != nil {
-
+		if err != nil && handler.description.authRequired {
+			return err, true
 		}
 	}
 

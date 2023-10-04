@@ -195,10 +195,12 @@ func TestServer(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter[*TestContainer, *TestUserData]()
 
+		testHandler := func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestRequest) (*TestResponse, error) {
+			return nil, NewError(http.StatusTeapot, "teapot")
+		}
+
 		router.Add("/test", handler{
-			Get: Create(func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestRequest) (*TestResponse, error) {
-				return nil, NewError(http.StatusTeapot, "teapot")
-			}),
+			Get: Create(testHandler, AuthRequired()),
 		})
 
 		run(NewServer(ctx, ":80", router, Options{}))
