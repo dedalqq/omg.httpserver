@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 )
 
@@ -26,13 +25,24 @@ type HandlerMiddleware[C, A any] func(HandlerFunc[C, A]) HandlerFunc[C, A]
 
 type StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool
 
+type objectType struct {
+	name        string
+	description string
+	object      *apiType
+}
+
 type apiDescription struct {
-	authRequired bool
+	authRequired   bool
+	headers        OrderedMap[apiType]
+	args           OrderedMap[apiType]
+	query          OrderedMap[apiType]
+	requestObject  *objectType
+	responseObject *objectType
 }
 
 type MethodHandler[C, A any] struct {
-	handlerFunc HandlerFunc[C, A]
 	description apiDescription
+	handlerFunc HandlerFunc[C, A]
 }
 
 type Handler[C, A any] struct {
@@ -61,42 +71,4 @@ type ResponseWithContentType interface {
 
 type ResponseWithCookie interface {
 	Cookie() []*http.Cookie
-}
-
-type Error struct {
-	cause error
-
-	HttpCode  int    `json:"code"`
-	ErrorText string `json:"error"`
-}
-
-func NewError(code int, format string, a ...interface{}) Error {
-	return Error{
-		HttpCode:  code,
-		ErrorText: fmt.Sprintf(format, a...),
-	}
-}
-
-func Wrapf(err error, code int, format string, a ...interface{}) Error {
-	return Error{
-		cause:     err,
-		HttpCode:  code,
-		ErrorText: fmt.Sprintf(format, a...),
-	}
-}
-
-func (e Error) Cause() error  { return e.cause }
-func (e Error) Unwrap() error { return e.cause }
-
-func (e Error) Error() string {
-	causeErrText := ""
-	if e.cause != nil {
-		causeErrText = fmt.Sprintf(": %s", e.cause.Error())
-	}
-
-	return fmt.Sprintf("http error [%d] %s%s", e.HttpCode, e.ErrorText, causeErrText)
-}
-
-func (e Error) Code() int {
-	return e.HttpCode
 }

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -121,14 +122,14 @@ func handleStructFields(data interface{}, handler ...fieldHandler) error {
 	t := reflect.TypeOf(data)
 	v := reflect.ValueOf(data)
 
-	if t.Kind() == reflect.Pointer {
+	for t.Kind() == reflect.Pointer { // if
 		t = t.Elem()
 		v = v.Elem()
 	}
 
-	if t.Kind() != reflect.Struct {
-		panic("data is not a struct")
-	}
+	//if t.Kind() != reflect.Struct {
+	//	panic("data is not a struct")
+	//}
 
 	for i := 0; i < t.NumField(); i++ {
 		ft := t.Field(i)
@@ -232,7 +233,36 @@ func parseRequest(ctx context.Context, data interface{}, r *http.Request, args [
 }
 
 func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), options ...Option) *MethodHandler[C, A] {
+	var (
+		rq RQ
+		rs RP
+	)
+
+	rqRef := reflect.TypeOf(rq).Elem()
+	rpRef := reflect.TypeOf(rs).Elem()
+
+	params := parameters{}
+
+	rqType := definitionFromObject(rqRef, &params, "")
+	rpType := definitionFromObject(rpRef, &params, "")
+
 	handler := &MethodHandler[C, A]{
+		description: apiDescription{
+			headers: params.headers,
+			args:    params.args,
+			query:   params.query,
+
+			requestObject: &objectType{
+				name:   rqRef.Name(),
+				object: &rqType,
+			},
+
+			responseObject: &objectType{
+				name:        rpRef.Name(),
+				description: "Success response",
+				object:      &rpType,
+			},
+		},
 		handlerFunc: func(ctx context.Context, c C, a A, r *http.Request, args []string) interface{} {
 			var request RQ
 
@@ -258,4 +288,157 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 	}
 
 	return handler
+}
+
+type OrderedMapField[T any] struct {
+	name  string
+	value T
+}
+
+type OrderedMap[T any] []OrderedMapField[T]
+
+func (p *OrderedMap[T]) Add(name string, t T) {
+	for i, v := range *p {
+		if v.name == name {
+			(*p)[i].value = t
+			return
+		}
+	}
+
+	*p = append(*p, OrderedMapField[T]{
+		name:  name,
+		value: t,
+	})
+}
+
+func (p *OrderedMap[T]) MarshalJSON() ([]byte, error) {
+	buf := bytes.NewBuffer([]byte{})
+
+	buf.Write([]byte{'{'})
+
+	for i, v := range *p {
+		b, err := json.Marshal(&v.value)
+		if err != nil {
+			return nil, err
+		}
+
+		_, _ = fmt.Fprintf(buf, "%q:", v.name)
+		buf.Write(b)
+		if i < len(*p)-1 {
+			buf.Write([]byte{','})
+		}
+	}
+
+	buf.Write([]byte{'}'})
+
+	return buf.Bytes(), nil
+}
+
+func intFormat(k reflect.Kind) string {
+	switch k {
+	case reflect.Int: // TODO ...
+		return "int64"
+	case reflect.Int8:
+		return "int8"
+	case reflect.Int16:
+		return "int16"
+	case reflect.Int32:
+		return "int32"
+	case reflect.Int64:
+		return "int64"
+	case reflect.Uint: // TODO ...
+		return "uint64"
+	case reflect.Uint8:
+		return "uint8"
+	case reflect.Uint16:
+		return "uint16"
+	case reflect.Uint32:
+		return "uint32"
+	case reflect.Uint64:
+		return "uint64"
+	default:
+		return ""
+	}
+}
+
+type parameters struct {
+	headers, args, query OrderedMap[apiType]
+}
+
+func definitionFromObject(t reflect.Type, p *parameters, desc string) apiType {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	switch t.Kind() {
+	case reflect.Struct:
+		fields := make(OrderedMap[apiType], 0, t.NumField())
+
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+
+			dd := f.Tag.Get("desc")
+
+			if h := f.Tag.Get("header"); h != "" {
+				p.headers.Add(h, apiType{
+					Type:        TypeString, // TODO
+					Description: dd,
+					Required:    false,
+				})
+
+				continue
+			}
+
+			if h := f.Tag.Get("args"); h != "" {
+				p.args.Add(h, apiType{
+					Type:        TypeString, // TODO
+					Description: dd,
+					Required:    true,
+				})
+
+				continue
+			}
+
+			if h := f.Tag.Get("query"); h != "" {
+				p.query.Add(h, apiType{
+					Type:        TypeString, // TODO
+					Description: dd,
+					Required:    false,
+				})
+
+				continue
+			}
+
+			jsonTag := f.Tag.Get("json")
+			if jsonTag == "" {
+				jsonTag = f.Name
+			}
+
+			fields.Add(jsonTag, definitionFromObject(f.Type, p, dd))
+		}
+
+		return apiType{
+			Type:        TypeObject,
+			Description: desc,
+			Properties:  fields,
+		}
+	case reflect.String:
+		return apiType{
+			Type:        TypeString,
+			Description: desc,
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return apiType{
+			Type:        TypeInteger,
+			Description: desc,
+			Format:      intFormat(t.Kind()),
+		}
+	case reflect.Bool:
+		return apiType{
+			Type:        TypeBool,
+			Description: desc,
+		}
+	default:
+		return apiType{}
+	}
 }
