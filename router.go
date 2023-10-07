@@ -5,12 +5,23 @@ import (
 	"fmt"
 	"path"
 	"regexp"
-	"strings"
 )
+
+var placeholderReg *regexp.Regexp
+
+func init() {
+	var err error
+
+	placeholderReg, err = regexp.Compile("{([^/]+)}")
+	if err != nil {
+		panic(err)
+	}
+}
 
 type route[C, A any] struct {
 	path    string
 	pattern *regexp.Regexp
+	args    []string
 	handler Handler[C, A]
 }
 
@@ -33,18 +44,21 @@ func NewRouter[C, A any]() Router[C, A] {
 
 // Add new router rule in to router object for handler
 func (r *Router[C, A]) Add(path string, h Handler[C, A]) *Router[C, A] {
-	path = strings.ReplaceAll(path, "{any}", "([^/]+)")
-	path = strings.ReplaceAll(path, "{int}", "(\\d+)")
-	path = strings.ReplaceAll(path, "{uuid}", "([0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12})")
+	res := placeholderReg.FindAllStringSubmatch(path, -1)
+	args := make([]string, 0, len(res))
+	for _, r := range res {
+		args = append(args, r[1])
+	}
 
-	reg, err := regexp.Compile(fmt.Sprintf("^%s$", path))
+	reg, err := regexp.Compile(fmt.Sprintf("^%s$", placeholderReg.ReplaceAllString(path, "([^/]+)")))
 	if err != nil {
-		panic(err)
+		panic(err) // TODO
 	}
 
 	r.routes = append(r.routes, route[C, A]{
 		path:    path,
 		pattern: reg,
+		args:    args,
 		handler: h,
 	})
 
@@ -155,16 +169,16 @@ func (r *Router[C, A]) AddSwagger(path string) {
 //
 //}
 
-func (r *Router[C, A]) get(path string) (*Handler[C, A], []string) {
+func (r *Router[C, A]) get(path string) (*Handler[C, A], []string, []string) {
 	for _, r := range r.routes {
 		if res := r.pattern.FindStringSubmatch(path); len(res) > 0 {
-			return &r.handler, res[1:]
+			return &r.handler, r.args, res[1:]
 		}
 	}
 
 	if r.defaultRoute != nil {
-		return r.defaultRoute, []string{}
+		return r.defaultRoute, nil, nil
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }

@@ -20,7 +20,7 @@ type AuthFunc[A any] func(*http.Request) (A, error)
 type RequestHandler[C, A any] func(context.Context, Router[C, A], C, AuthFunc[A], http.ResponseWriter, *http.Request) (interface{}, bool)
 type RequestMiddleware[C, A any] func(RequestHandler[C, A]) RequestHandler[C, A]
 
-type HandlerFunc[C, A any] func(context.Context, C, A, *http.Request, []string) interface{}
+type HandlerFunc[C, A any] func(context.Context, C, A, *http.Request, []string, []string) interface{}
 type HandlerMiddleware[C, A any] func(HandlerFunc[C, A]) HandlerFunc[C, A]
 
 type StdHandler func(context.Context, http.ResponseWriter, *http.Request, []string) bool

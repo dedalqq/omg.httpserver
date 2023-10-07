@@ -37,23 +37,14 @@ func trim(tagValue string, value interface{}) error {
 	return nil
 }
 
-func parseArgs(tagValue string, targetValue interface{}, args []string) error {
-	argNum, err := strconv.Atoi(tagValue)
-	if err != nil {
-		panic("incorrect args tags")
+func parseArgs(tagValue string, targetValue interface{}, argsPlace []string, args []string) error {
+	var argValue string
+
+	for i, name := range argsPlace {
+		if name == tagValue {
+			argValue = args[i]
+		}
 	}
-
-	if argNum == 0 {
-		panic("incorrect args tags value")
-	}
-
-	argNum -= 1
-
-	if argNum >= len(args) {
-		return fmt.Errorf("invalid args count")
-	}
-
-	argValue := args[argNum]
 
 	switch v := targetValue.(type) {
 	case *string:
@@ -178,7 +169,7 @@ func handleStructFields(data interface{}, handler ...fieldHandler) error {
 	return nil
 }
 
-func parseRequest(ctx context.Context, data interface{}, r *http.Request, args []string) interface{} {
+func parseRequest(_ context.Context, data interface{}, r *http.Request, argsPlace []string, args []string) interface{} {
 	contentType := r.Header.Get("Content-Type")
 
 	switch {
@@ -215,7 +206,7 @@ func parseRequest(ctx context.Context, data interface{}, r *http.Request, args [
 			return parseQuery(tag, v, r.URL)
 		}},
 		fieldHandler{"args", func(tag string, v interface{}) error {
-			return parseArgs(tag, v, args)
+			return parseArgs(tag, v, argsPlace, args)
 		}},
 		fieldHandler{"json", trim},
 	)
@@ -263,13 +254,13 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 				object:      &rpType,
 			},
 		},
-		handlerFunc: func(ctx context.Context, c C, a A, r *http.Request, args []string) interface{} {
+		handlerFunc: func(ctx context.Context, c C, a A, r *http.Request, argsPlace []string, args []string) interface{} {
 			var request RQ
 
 			t := reflect.TypeOf(request).Elem()
 			request = reflect.New(t).Interface().(RQ)
 
-			res := parseRequest(ctx, request, r, args)
+			res := parseRequest(ctx, request, r, argsPlace, args)
 			if res != nil {
 				return res
 			}

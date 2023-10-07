@@ -269,7 +269,8 @@ func TestDefaultHandler(t *testing.T) {
 }
 
 type TestUserDataWithArguments struct {
-	Args1 string `args:"1"`
+	Args1 string `args:"args1"`
+	Args2 int    `args:"args2"`
 }
 
 func TestHandlerAnyArgs(t *testing.T) {
@@ -278,7 +279,7 @@ func TestHandlerAnyArgs(t *testing.T) {
 
 		var argument string
 
-		router.Add("/first-test/{any}", handler{
+		router.Add("/first-test/{args1}", handler{
 			Get: Create(func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestRequest) (*TestResponse, error) {
 				t.Fail()
 
@@ -286,7 +287,7 @@ func TestHandlerAnyArgs(t *testing.T) {
 			}),
 		})
 
-		router.Add("/first-test/{any}/second-test", handler{
+		router.Add("/first-test/{args1}/second-test", handler{
 			Get: Create(func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestUserDataWithArguments) (*TestResponse, error) {
 				argument = r.Args1
 
@@ -313,9 +314,9 @@ func TestHandlerIntArgs(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter[*TestContainer, *TestUserData]()
 
-		var argument string
+		var argument int
 
-		router.Add("/first-test/{any}", handler{
+		router.Add("/first-test/{args2}", handler{
 			Get: Create(func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestRequest) (*TestResponse, error) {
 				t.Fail()
 
@@ -323,9 +324,9 @@ func TestHandlerIntArgs(t *testing.T) {
 			}),
 		})
 
-		router.Add("/first-test/{int}/second-test", handler{
+		router.Add("/first-test/{args2}/second-test", handler{
 			Get: Create(func(ctx context.Context, c *TestContainer, u *TestUserData, r *TestUserDataWithArguments) (*TestResponse, error) {
-				argument = r.Args1
+				argument = r.Args2
 
 				return nil, NewError(http.StatusTeapot, "teapot")
 			}),
@@ -338,7 +339,7 @@ func TestHandlerIntArgs(t *testing.T) {
 			return err
 		}
 
-		if !reflect.DeepEqual(argument, "123") {
+		if !reflect.DeepEqual(argument, 123) {
 			t.Fail()
 		}
 

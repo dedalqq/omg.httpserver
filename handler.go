@@ -10,7 +10,7 @@ import (
 )
 
 func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, af AuthFunc[A], w http.ResponseWriter, r *http.Request) (interface{}, bool) {
-	ep, args := router.get(r.URL.Path)
+	ep, argsPlace, args := router.get(r.URL.Path)
 	if ep == nil {
 		return NewError(http.StatusNotFound, "method not exist"), true
 	}
@@ -73,7 +73,7 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 		}
 	}
 
-	return handlerFunc(ctx, c, authInfo, r, args), true
+	return handlerFunc(ctx, c, authInfo, r, argsPlace, args), true
 }
 
 type httpHandler[C, A any] struct {
