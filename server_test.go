@@ -203,7 +203,7 @@ func TestServer(t *testing.T) {
 			Get: Create(testHandler, AuthRequired()),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -228,7 +228,7 @@ func TestDefaultResponse(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -253,7 +253,7 @@ func TestDefaultHandler(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/some-path")
 		if err != nil {
@@ -295,7 +295,7 @@ func TestHandlerAnyArgs(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		_, err := cl.Get("http://localhost/first-test/some-test-data/second-test")
 		if err != nil {
@@ -332,7 +332,7 @@ func TestHandlerIntArgs(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		_, err := cl.Get("http://localhost/first-test/123/second-test")
 		if err != nil {
@@ -351,7 +351,7 @@ func TestNotFound(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter[*TestContainer, *TestUserData]()
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -376,7 +376,7 @@ func TestPanic(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}, NewPanicHandlerMiddleware[*TestContainer, *TestUserData](&emptyLogger{})))
+		run(NewServer(":80", router, Options{}, NewPanicHandlerMiddleware[*TestContainer, *TestUserData](&emptyLogger{})))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -401,7 +401,7 @@ func TestMethodNotSupported(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
@@ -465,7 +465,7 @@ func TestSubRoute(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test/sub-test")
 		if err != nil {
@@ -518,7 +518,7 @@ func TestAllMethods(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		doRequest := func(method string, url string) {
 			req, err := http.NewRequest(method, url, nil)
@@ -605,7 +605,7 @@ func TestGZIP(t *testing.T) {
 			}),
 		})
 
-		run(NewServer(ctx, ":80", router, Options{SupportGZIP: true}))
+		run(NewServer(":80", router, Options{SupportGZIP: true}))
 
 		req, err := http.NewRequest(http.MethodGet, "http://localhost/test", nil)
 		if err != nil {
@@ -658,7 +658,7 @@ func TestStdHandler(t *testing.T) {
 			},
 		})
 
-		run(NewServer(ctx, ":80", router, Options{}))
+		run(NewServer(":80", router, Options{}))
 
 		resp, err := cl.Get("http://localhost/test")
 		if err != nil {
