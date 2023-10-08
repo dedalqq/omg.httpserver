@@ -32,12 +32,17 @@ type objectType struct {
 }
 
 type apiDescription struct {
-	authRequired   bool
-	headers        OrderedMap[apiType]
-	args           OrderedMap[apiType]
-	query          OrderedMap[apiType]
-	requestObject  *objectType
-	responseObject *objectType
+	authRequired bool
+
+	headers OrderedMap[apiType]
+	args    OrderedMap[apiType]
+	query   OrderedMap[apiType]
+
+	requestObject objectType
+
+	respContentType   string
+	successStatusCode int
+	responseObject    objectType
 }
 
 type MethodHandler[C, A any] struct {
@@ -57,10 +62,6 @@ type Handler[C, A any] struct {
 	Patch  *MethodHandler[C, A]
 }
 
-type ResponseWithBody interface {
-	Body() interface{}
-}
-
 type ResponseWithCode interface {
 	Code() int
 }
@@ -72,3 +73,7 @@ type ResponseWithContentType interface {
 type ResponseWithCookie interface {
 	Cookie() []*http.Cookie
 }
+
+type NoContent struct{}
+
+func (n NoContent) Code() int { return http.StatusNoContent }

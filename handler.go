@@ -4,8 +4,10 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -76,8 +78,7 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 	return handlerFunc(ctx, c, authInfo, r, argsPlace, args), true
 }
 
-type httpHandler[C, A any] struct {
-	ctx         context.Context
+type HttpHandler[C, A any] struct {
 	middlewares []RequestMiddleware[C, A]
 	container   C
 	authFunc    AuthFunc[A]
@@ -86,15 +87,35 @@ type httpHandler[C, A any] struct {
 	gzip        bool
 }
 
+func NewHttpHandler[C, A any](r Router[C, A], opt Options, middlewares ...RequestMiddleware[C, A]) *HttpHandler[C, A] {
+	log := opt.Logger
+
+	if log == nil {
+		log = &emptyLogger{}
+	}
+
+	return &HttpHandler[C, A]{
+		middlewares: middlewares,
+		router:      r,
+		log:         log,
+		gzip:        opt.SupportGZIP,
+	}
+}
+
+func (h *HttpHandler[C, A]) SetContainer(container C) *HttpHandler[C, A] {
+	h.container = container
+	return h
+}
+
 // ServeHTTP is a Handler responds to an HTTP request.
-func (h *httpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler := handleHttpRequest[C, A]
 
 	for _, m := range h.middlewares {
 		handler = m(handler)
 	}
 
-	result, ctn := handler(h.ctx, h.router, h.container, h.authFunc, w, r)
+	result, ctn := handler(r.Context(), h.router, h.container, h.authFunc, w, r)
 	if !ctn {
 		return
 	}
@@ -111,12 +132,27 @@ func (h *httpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
 
-	switch r := result.(type) {
-	case ResponseWithContentType:
+	//if _, ok := result.(error); !ok && contentType == "" {
+	//	rt := reflect.TypeOf(result)
+	//	for rt.Kind() == reflect.Pointer {
+	//		rt = rt.Elem()
+	//	}
+	//
+	//	if rt.Kind() == reflect.Struct {
+	//		contentType = "application/json"
+	//	}
+	//}
+
+	if r, ok := result.(ResponseWithContentType); ok {
 		w.Header().Set("Content-Type", r.ContentType())
-	case io.Reader:
-	default:
-		w.Header().Set("Content-Type", "application/json")
+	} else if rr := reflect.TypeOf(r); rr != nil {
+		for rr.Kind() == reflect.Pointer {
+			rr = rr.Elem()
+		}
+
+		if rr.Kind() == reflect.Struct {
+			w.Header().Set("Content-Type", "application/json")
+		}
 	}
 
 	if rs, ok := result.(ResponseWithCookie); ok {
@@ -134,14 +170,9 @@ func (h *httpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	body := result
-	if r, ok := result.(ResponseWithBody); ok {
-		body = r.Body()
-	}
-
 	if gzipAccept && h.gzip {
 		gw := gzip.NewWriter(w)
-		err = writeBody(gw, body)
+		err = writeBody(gw, result)
 		if err != nil {
 			h.log.Error(err)
 			return
@@ -155,7 +186,7 @@ func (h *httpHandler[C, A]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = writeBody(w, body)
+	err = writeBody(w, result)
 	if err != nil {
 		h.log.Error(err)
 	}
@@ -165,6 +196,10 @@ func writeBody(w io.Writer, body interface{}) error {
 	var err error
 
 	switch r := body.(type) {
+	case []byte:
+		_, err = w.Write(r)
+	case string:
+		_, err = fmt.Fprint(w, r)
 	case io.Reader:
 		_, err = io.Copy(w, r)
 	default:

@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"context"
 	"net/http"
 )
 
@@ -11,8 +10,8 @@ type Options struct {
 	Logger      Logger
 }
 
-// NewServer creates and return new http server which the contains a omg http handler
-func NewServer[C, A any](ctx context.Context, addr string, r Router[C, A], opt Options, middlewares ...RequestMiddleware[C, A]) *http.Server {
+// NewServer creates and return new http server which the contains omg http handler
+func NewServer[C, A any](addr string, r Router[C, A], opt Options, middlewares ...RequestMiddleware[C, A]) *http.Server {
 	log := opt.Logger
 
 	if log == nil {
@@ -21,8 +20,7 @@ func NewServer[C, A any](ctx context.Context, addr string, r Router[C, A], opt O
 
 	return &http.Server{
 		Addr: addr,
-		Handler: &httpHandler[C, A]{
-			ctx:         ctx,
+		Handler: &HttpHandler[C, A]{
 			middlewares: middlewares,
 			router:      r,
 			log:         log,

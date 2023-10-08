@@ -224,18 +224,45 @@ func parseRequest(_ context.Context, data interface{}, r *http.Request, argsPlac
 }
 
 func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), options ...Option) *MethodHandler[C, A] {
-	var (
-		rq RQ
-		rs RP
-	)
+	var rq RQ
+	var rp RP
 
-	rqRef := reflect.TypeOf(rq).Elem()
-	rpRef := reflect.TypeOf(rs).Elem()
+	rqRef := reflect.TypeOf(rq)
+	rpRef := reflect.TypeOf(rp)
+
+	var rqName, rpName string
+
+	if rqRef != nil {
+		for rqRef.Kind() == reflect.Pointer {
+			rqRef = rqRef.Elem()
+		}
+
+		rqName = rqRef.Name()
+	}
+
+	if rpRef != nil {
+		for rpRef.Kind() == reflect.Pointer {
+			rpRef = rpRef.Elem()
+		}
+
+		rpName = rpRef.Name()
+	}
+
+	successStatusCode := http.StatusOK
+
+	if t, ok := (interface{})(rp).(ResponseWithCode); ok {
+		successStatusCode = t.Code()
+	}
 
 	params := parameters{}
 
-	rqType := definitionFromObject(rqRef, &params, "")
-	rpType := definitionFromObject(rpRef, &params, "")
+	var rqType, rpType *apiType
+
+	rqType = definitionFromObject(rqRef, &params, "")
+
+	if _, ok := (interface{})(rp).(NoContent); !ok {
+		rpType = definitionFromObject(rpRef, &params, "")
+	}
 
 	handler := &MethodHandler[C, A]{
 		description: apiDescription{
@@ -243,22 +270,27 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 			args:    params.args,
 			query:   params.query,
 
-			requestObject: &objectType{
-				name:   rqRef.Name(),
-				object: &rqType,
+			requestObject: objectType{
+				name:   rqName,
+				object: rqType,
 			},
 
-			responseObject: &objectType{
-				name:        rpRef.Name(),
+			successStatusCode: successStatusCode,
+
+			responseObject: objectType{
+				name:        rpName,
 				description: "Success response",
-				object:      &rpType,
+				object:      rpType,
 			},
 		},
+
 		handlerFunc: func(ctx context.Context, c C, a A, r *http.Request, argsPlace []string, args []string) interface{} {
 			var request RQ
 
-			t := reflect.TypeOf(request).Elem()
-			request = reflect.New(t).Interface().(RQ)
+			t := reflect.TypeOf(request)
+			if t.Kind() == reflect.Pointer { // TODO try support not pointer
+				request = reflect.New(t.Elem()).Interface().(RQ)
+			}
 
 			res := parseRequest(ctx, request, r, argsPlace, args)
 			if res != nil {
@@ -356,7 +388,11 @@ type parameters struct {
 	headers, args, query OrderedMap[apiType]
 }
 
-func definitionFromObject(t reflect.Type, p *parameters, desc string) apiType {
+func definitionFromObject(t reflect.Type, p *parameters, desc string) *apiType {
+	if t == nil {
+		return nil
+	}
+
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
@@ -405,31 +441,34 @@ func definitionFromObject(t reflect.Type, p *parameters, desc string) apiType {
 				jsonTag = f.Name
 			}
 
-			fields.Add(jsonTag, definitionFromObject(f.Type, p, dd))
+			parameter := definitionFromObject(f.Type, p, dd)
+			if parameter != nil {
+				fields.Add(jsonTag, *parameter)
+			}
 		}
 
-		return apiType{
+		return &apiType{
 			Type:        TypeObject,
 			Description: desc,
 			Properties:  fields,
 		}
 	case reflect.String:
-		return apiType{
+		return &apiType{
 			Type:        TypeString,
 			Description: desc,
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return apiType{
+		return &apiType{
 			Type:        TypeInteger,
 			Description: desc,
 			Format:      intFormat(t.Kind()),
 		}
 	case reflect.Bool:
-		return apiType{
+		return &apiType{
 			Type:        TypeBool,
 			Description: desc,
 		}
 	default:
-		return apiType{}
+		return nil
 	}
 }

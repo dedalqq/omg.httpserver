@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 var placeholderReg *regexp.Regexp
@@ -98,7 +100,7 @@ func appendParameters(params *[]apiParameter, values OrderedMap[apiType], in str
 	}
 }
 
-func descriptionHandler[C, A any](handler *MethodHandler[C, A], definitions *OrderedMap[apiType]) *apiHandler {
+func descriptionHandler[C, A any](handler *MethodHandler[C, A], definitions *OrderedMap[apiType], withBody bool) *apiHandler {
 	if handler == nil {
 		return nil
 	}
@@ -109,7 +111,9 @@ func descriptionHandler[C, A any](handler *MethodHandler[C, A], definitions *Ord
 	appendParameters(&descHandler.Parameters, handler.description.args, "path")
 	appendParameters(&descHandler.Parameters, handler.description.query, "query")
 
-	if obj := handler.description.requestObject; obj != nil {
+	obj := handler.description.requestObject
+
+	if withBody && len(obj.object.Properties) > 0 {
 		definitions.Add(obj.name, *obj.object)
 
 		descHandler.Parameters = append(descHandler.Parameters, apiParameter{
@@ -122,52 +126,89 @@ func descriptionHandler[C, A any](handler *MethodHandler[C, A], definitions *Ord
 		})
 	}
 
-	if obj := handler.description.responseObject; obj != nil {
+	respDefinition := apiParameter{
+		Description: handler.description.responseObject.description,
+	}
+
+	if obj := handler.description.responseObject; obj.object != nil {
 		definitions.Add(obj.name, *obj.object)
 
-		descHandler.Responses.Add("200", apiParameter{
-			Description: obj.description,
-			Schema: &apiSchema{
-				Ref: fmt.Sprintf("#/definitions/%s", obj.name),
-			},
-		})
+		respDefinition.Schema = &apiSchema{
+			Ref: fmt.Sprintf("#/definitions/%s", obj.name),
+		}
 	}
+
+	descHandler.Responses.Add(strconv.Itoa(handler.description.successStatusCode), respDefinition)
 
 	return descHandler
 }
 
-func (r *Router[C, A]) renderSwagger(_ context.Context, _ C, _ A, _ struct{}) (*Swagger, error) {
-	swagger := &Swagger{
-		Swagger: "2.0",
-		Info: apiInfo{
-			Title:       "Some API",
-			Version:     "v0.0",
-			Description: "Auto generated documentation",
-		},
-	}
+func (r *Router[C, A]) renderSwagger(prefix string, opt SwaggerOpt) func(_ context.Context, _ C, _ A, _ struct{}) (*Swagger, error) {
+	opt.fillDefault(prefix)
 
-	for _, rt := range r.routes {
-		swagger.Paths.Add(rt.path, apiEndpoint{
-			Get:    descriptionHandler(rt.handler.Get, &swagger.Definitions),
-			Post:   descriptionHandler(rt.handler.Post, &swagger.Definitions),
-			Put:    descriptionHandler(rt.handler.Put, &swagger.Definitions),
-			Delete: descriptionHandler(rt.handler.Delete, &swagger.Definitions),
-			Patch:  descriptionHandler(rt.handler.Patch, &swagger.Definitions),
-		})
-	}
+	return func(_ context.Context, _ C, _ A, _ struct{}) (*Swagger, error) {
+		swagger := &Swagger{
+			Swagger: "2.0",
+			Info: apiInfo{
+				Title:       opt.Title,
+				Version:     opt.Version,
+				Description: opt.Description,
+			},
+			BasePath: opt.BasePath,
+		}
 
-	return swagger, nil
+		for _, rt := range r.routes {
+			if !strings.HasPrefix(rt.path, prefix) {
+				continue
+			}
+
+			swagger.Paths.Add(rt.path[len(prefix):], apiEndpoint{
+				Get:    descriptionHandler(rt.handler.Get, &swagger.Definitions, false),
+				Post:   descriptionHandler(rt.handler.Post, &swagger.Definitions, true),
+				Put:    descriptionHandler(rt.handler.Put, &swagger.Definitions, true),
+				Delete: descriptionHandler(rt.handler.Delete, &swagger.Definitions, true),
+				Patch:  descriptionHandler(rt.handler.Patch, &swagger.Definitions, true),
+			})
+		}
+
+		return swagger, nil
+	}
 }
 
-func (r *Router[C, A]) AddSwagger(path string) {
+type SwaggerOpt struct {
+	Title       string
+	Version     string
+	Description string
+
+	BasePath string
+}
+
+func (o *SwaggerOpt) fillDefault(prefix string) {
+	if o.Title == "" {
+		o.Title = "Some API"
+	}
+	if o.Version == "" {
+		o.Version = "v0.0"
+	}
+	if o.Description == "" {
+		o.Description = "Auto generated documentation"
+	}
+	if o.BasePath == "" {
+		o.BasePath = prefix
+	}
+}
+
+func (r *Router[C, A]) AddSwagger(path string, opt SwaggerOpt) {
 	r.Add(path, Handler[C, A]{
-		Get: Create(r.renderSwagger),
+		Get: Create(r.renderSwagger("", opt)),
 	})
 }
 
-//func (r *SubRouter[C, A]) AddSubSwagger(path string, sr *SubRouter[C, A]) {
-//
-//}
+func (r *Router[C, A]) AddSwaggerSubRoute(path string, sr *SubRouter[C, A], opt SwaggerOpt) {
+	r.Add(path, Handler[C, A]{
+		Get: Create(r.renderSwagger(sr.subPath, opt)),
+	})
+}
 
 func (r *Router[C, A]) get(path string) (*Handler[C, A], []string, []string) {
 	for _, r := range r.routes {
