@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -191,6 +192,16 @@ type TestResponse struct {
 	Data string `json:"data,omitempty"`
 }
 
+func assert(t *testing.T, actual, expected any) {
+	if !reflect.DeepEqual(actual, expected) {
+		if _, fName, line, ok := runtime.Caller(1); ok {
+			fmt.Printf("Assert failed on: %s:%d\n", fName, line)
+		}
+
+		t.Fail()
+	}
+}
+
 func TestServer(t *testing.T) {
 	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
 		router := NewRouter[*TestContainer, *TestUserData]()
@@ -235,9 +246,7 @@ func TestDefaultResponse(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "200 OK" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "200 OK")
 
 		return nil
 	})
@@ -260,9 +269,7 @@ func TestDefaultHandler(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "418 I'm a teapot" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "418 I'm a teapot")
 
 		return nil
 	})
@@ -302,9 +309,7 @@ func TestHandlerAnyArgs(t *testing.T) {
 			return err
 		}
 
-		if !reflect.DeepEqual(argument, "some-test-data") {
-			t.Fail()
-		}
+		assert(t, argument, "some-test-data")
 
 		return nil
 	})
@@ -339,9 +344,7 @@ func TestHandlerIntArgs(t *testing.T) {
 			return err
 		}
 
-		if !reflect.DeepEqual(argument, 123) {
-			t.Fail()
-		}
+		assert(t, argument, 123)
 
 		return nil
 	})
@@ -358,9 +361,7 @@ func TestNotFound(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "404 Not Found" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "404 Not Found")
 
 		return nil
 	})
