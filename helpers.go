@@ -205,15 +205,10 @@ func parseRequest(_ context.Context, data interface{}, r *http.Request, argsPlac
 	}
 
 	err := handleStructFields(data,
-		fieldHandler{"header", func(tag string, v interface{}) error {
-			return parseHeader(tag, v, r.Header)
-		}},
-		fieldHandler{"query", func(tag string, v interface{}) error {
-			return parseQuery(tag, v, r.URL)
-		}},
-		fieldHandler{"args", func(tag string, v interface{}) error {
-			return parseArgs(tag, v, argsPlace, args)
-		}},
+		fieldHandler{"header", func(tag string, v interface{}) error { return parseHeader(tag, v, r.Header) }},
+		fieldHandler{"query", func(tag string, v interface{}) error { return parseQuery(tag, v, r.URL) }},
+		fieldHandler{"args", func(tag string, v interface{}) error { return parseArgs(tag, v, argsPlace, args) }},
+
 		fieldHandler{"json", trim},
 	)
 
