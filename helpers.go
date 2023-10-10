@@ -37,6 +37,51 @@ func trim(tagValue string, value interface{}) error {
 	return nil
 }
 
+func setValue(targetValue interface{}, value string) error {
+	//if reflect.TypeOf(targetValue).Kind() != reflect.Pointer {
+	//	return fmt.Errorf("value ", value)
+	//}
+
+	switch v := targetValue.(type) {
+	case *string:
+		*v = value
+		return nil
+
+	case *int, *int8, *int16, *int32, *int64:
+		intVal, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("value [%s] must be int", value)
+		}
+
+		reflect.ValueOf(targetValue).Elem().SetInt(int64(intVal))
+
+		return nil
+
+	case *uint, *uint8, *uint16, *uint32, *uint64:
+		intVal, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("value [%s] must be uint", value)
+		}
+
+		reflect.ValueOf(targetValue).Elem().SetUint(uint64(intVal))
+
+		return nil
+	case *bool:
+		switch value {
+		case "true", "True", "1":
+			*v = true
+		case "false", "False", "0":
+			*v = false
+		default:
+			return fmt.Errorf("value [%s] must be bool", value)
+		}
+
+		return nil
+	default:
+		return json.Unmarshal([]byte(value), targetValue)
+	}
+}
+
 func parseArgs(tagValue string, targetValue interface{}, argsPlace []string, args []string) error {
 	var argValue string
 
@@ -46,28 +91,7 @@ func parseArgs(tagValue string, targetValue interface{}, argsPlace []string, arg
 		}
 	}
 
-	switch v := targetValue.(type) {
-	case *string:
-		*v = argValue
-	case *int, *int8, *int16, *int32, *int64:
-		intVal, err := strconv.Atoi(argValue)
-		if err != nil {
-			return fmt.Errorf("value [%s]=[%v] is not a number", tagValue, argValue)
-		}
-
-		reflect.ValueOf(targetValue).Elem().SetInt(int64(intVal))
-	case *uint, *uint8, *uint16, *uint32, *uint64:
-		intVal, err := strconv.Atoi(argValue)
-		if err != nil {
-			return fmt.Errorf("value [%s]=[%v] is not a number", tagValue, argValue)
-		}
-
-		reflect.ValueOf(targetValue).Elem().SetUint(uint64(intVal))
-	default:
-		panic("type not supported")
-	}
-
-	return nil
+	return setValue(targetValue, argValue)
 }
 
 func parseQuery(tagValue string, targetValue interface{}, url *url.URL) error {
@@ -76,37 +100,16 @@ func parseQuery(tagValue string, targetValue interface{}, url *url.URL) error {
 		return nil
 	}
 
-	switch v := targetValue.(type) {
-	case *string:
-		*v = queryValue
-	case *int, *int8, *int16, *int32, *int64:
-		intVal, err := strconv.Atoi(queryValue)
-		if err != nil {
-			return fmt.Errorf("value [%s]=[%v] is not a number", tagValue, queryValue)
-		}
+	return setValue(targetValue, queryValue)
+}
 
-		reflect.ValueOf(targetValue).Elem().SetInt(int64(intVal))
-	case *uint, *uint8, *uint16, *uint32, *uint64:
-		intVal, err := strconv.Atoi(queryValue)
-		if err != nil {
-			return fmt.Errorf("value [%s]=[%v] is not a number", tagValue, queryValue)
-		}
-
-		reflect.ValueOf(targetValue).Elem().SetUint(uint64(intVal))
-	case *bool:
-		switch queryValue {
-		case "true", "True", "1":
-			*v = true
-		case "false", "False", "0":
-			*v = false
-		default:
-			return fmt.Errorf("incorrect bool value [%s]=[%v]", tagValue, queryValue)
-		}
-	default:
-		return json.Unmarshal([]byte(tagValue), targetValue)
+func parseHeader(tagValue string, targetValue interface{}, header http.Header) error {
+	headerValue := header.Get(tagValue)
+	if headerValue == "" {
+		return nil
 	}
 
-	return nil
+	return setValue(targetValue, headerValue)
 }
 
 func handleStructFields(data interface{}, handler ...fieldHandler) error {
@@ -202,6 +205,9 @@ func parseRequest(_ context.Context, data interface{}, r *http.Request, argsPlac
 	}
 
 	err := handleStructFields(data,
+		fieldHandler{"header", func(tag string, v interface{}) error {
+			return parseHeader(tag, v, r.Header)
+		}},
 		fieldHandler{"query", func(tag string, v interface{}) error {
 			return parseQuery(tag, v, r.URL)
 		}},

@@ -221,9 +221,7 @@ func TestServer(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "418 I'm a teapot" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "418 I'm a teapot")
 
 		return nil
 	})
@@ -384,9 +382,7 @@ func TestPanic(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "500 Internal Server Error" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "500 Internal Server Error")
 
 		return nil
 	})
@@ -409,9 +405,7 @@ func TestMethodNotSupported(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "404 Not Found" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "404 Not Found")
 
 		return nil
 	})
@@ -473,9 +467,7 @@ func TestSubRoute(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "418 I'm a teapot" {
-			t.Fail()
-		}
+		assert(t, resp.Status, "418 I'm a teapot2")
 
 		return nil
 	})
