@@ -15,9 +15,9 @@ import (
 
 type Option func(*apiDescription)
 
-func AuthRequired() Option {
+func AuthOptional() Option {
 	return func(d *apiDescription) {
-		d.authRequired = true
+		d.authOptional = true
 	}
 }
 

@@ -28,25 +28,15 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 
 	switch r.Method {
 	case http.MethodGet:
-		if ep.Get != nil {
-			handler = ep.Get
-		}
+		handler = ep.Get
 	case http.MethodPost:
-		if ep.Post != nil {
-			handler = ep.Post
-		}
+		handler = ep.Post
 	case http.MethodPut:
-		if ep.Put != nil {
-			handler = ep.Put
-		}
+		handler = ep.Put
 	case http.MethodPatch:
-		if ep.Patch != nil {
-			handler = ep.Patch
-		}
+		handler = ep.Patch
 	case http.MethodDelete:
-		if ep.Delete != nil {
-			handler = ep.Delete
-		}
+		handler = ep.Delete
 	}
 
 	if handler == nil {
@@ -70,7 +60,7 @@ func handleHttpRequest[C, A any](ctx context.Context, router Router[C, A], c C, 
 
 	if af != nil {
 		authInfo, err = af(r)
-		if err != nil && handler.description.authRequired {
+		if err != nil && !handler.description.authOptional {
 			return err, true
 		}
 	}
@@ -105,6 +95,10 @@ func NewHttpHandler[C, A any](r Router[C, A], opt Options, middlewares ...Reques
 func (h *HttpHandler[C, A]) SetContainer(container C) *HttpHandler[C, A] {
 	h.container = container
 	return h
+}
+
+func (h *HttpHandler[C, A]) SetAuthFunc(af AuthFunc[A]) {
+	h.authFunc = af
 }
 
 // ServeHTTP is a Handler responds to an HTTP request.

@@ -32,7 +32,7 @@ type objectType struct {
 }
 
 type apiDescription struct {
-	authRequired bool
+	authOptional bool
 
 	headers OrderedMap[apiType]
 	args    OrderedMap[apiType]

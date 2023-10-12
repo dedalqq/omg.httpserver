@@ -196,6 +196,7 @@ func assert(t *testing.T, actual, expected any) {
 	if !reflect.DeepEqual(actual, expected) {
 		if _, fName, line, ok := runtime.Caller(1); ok {
 			fmt.Printf("Assert failed on: %s:%d\n", fName, line)
+			fmt.Printf("\tgivven: %v\n", actual)
 		}
 
 		t.Fail()
@@ -211,7 +212,7 @@ func TestServer(t *testing.T) {
 		}
 
 		router.Add("/test", handler{
-			Get: Create(testHandler, AuthRequired()),
+			Get: Create(testHandler, AuthOptional()),
 		})
 
 		run(NewServer(":80", router, Options{}))
@@ -467,7 +468,7 @@ func TestSubRoute(t *testing.T) {
 			return err
 		}
 
-		assert(t, resp.Status, "418 I'm a teapot2")
+		assert(t, resp.Status, "418 I'm a teapot")
 
 		return nil
 	})
@@ -630,10 +631,7 @@ func TestGZIP(t *testing.T) {
 			t.Fail()
 		}
 
-		if string(data) != "the some test text" {
-			fmt.Println(string(data))
-			t.Fail()
-		}
+		assert(t, string(data), "the some test text")
 
 		return nil
 	})
@@ -658,9 +656,97 @@ func TestStdHandler(t *testing.T) {
 			return err
 		}
 
-		if resp.Status != "418 I'm a teapot" {
-			t.Fail()
+		assert(t, resp.Status, "418 I'm a teapot")
+
+		return nil
+	})
+}
+
+func TestAuth(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter[*TestContainer, *TestUserData]()
+
+		handlerFunc := func(ctx context.Context, c *TestContainer, a *TestUserData, rq TestRequest) (struct{}, error) {
+			assert(t, a, &TestUserData{
+				userID: 123,
+			})
+
+			return struct{}{}, nil
 		}
+
+		router.Add("/test", handler{
+			Get: Create(handlerFunc),
+		})
+
+		h := NewHttpHandler(router, Options{})
+
+		h.SetAuthFunc(func(r *http.Request) (*TestUserData, error) {
+			if r.Header.Get("user-id") == "123" {
+				return &TestUserData{
+					userID: 123,
+				}, nil
+			}
+
+			return nil, NewError(http.StatusForbidden, "forbidden")
+		})
+
+		run(&http.Server{Addr: ":80", Handler: h})
+
+		req1, _ := http.NewRequest("GET", "http://localhost/test", nil)
+		req1.Header.Set("user-id", "123")
+
+		resp, err := cl.Do(req1)
+		if err != nil {
+			return err
+		}
+
+		assert(t, resp.Status, "200 OK")
+
+		req2, _ := http.NewRequest("GET", "http://localhost/test", nil)
+		req2.Header.Set("user-id", "321")
+
+		resp, err = cl.Do(req2)
+		if err != nil {
+			return err
+		}
+
+		assert(t, resp.Status, "403 Forbidden")
+
+		return nil
+	})
+}
+
+func TestAuth1(t *testing.T) {
+	testRunner(t, func(ctx context.Context, run serverRunnerFunc, cl *http.Client) error {
+		router := NewRouter[*TestContainer, *TestUserData]()
+
+		handlerFunc := func(ctx context.Context, c *TestContainer, a *TestUserData, rq TestRequest) (struct{}, error) {
+			assert(t, a, (*TestUserData)(nil))
+
+			return struct{}{}, nil
+		}
+
+		router.Add("/test", handler{
+			Get: Create(handlerFunc, AuthOptional()),
+		})
+
+		h := NewHttpHandler(router, Options{})
+
+		h.SetAuthFunc(func(r *http.Request) (*TestUserData, error) {
+			return nil, NewError(http.StatusForbidden, "forbidden")
+		})
+
+		run(&http.Server{Addr: ":80", Handler: h})
+
+		req, _ := http.NewRequest("GET", "http://localhost/test", nil)
+		req.Header.Set("user-id", "123")
+
+		resp, err := cl.Do(req)
+		if err != nil {
+			return err
+		}
+
+		assert(t, resp.Status, "200 OK")
 
 		return nil
 	})
