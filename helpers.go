@@ -112,7 +112,7 @@ func parseHeader(tagValue string, targetValue interface{}, header http.Header) e
 	return setValue(targetValue, headerValue)
 }
 
-func handleStructFields(data interface{}, handler ...fieldHandler) error {
+func handleStructFields(data interface{}, request *http.Request, handler ...fieldHandler) error {
 	t := reflect.TypeOf(data)
 	v := reflect.ValueOf(data)
 
@@ -129,15 +129,15 @@ func handleStructFields(data interface{}, handler ...fieldHandler) error {
 		ft := t.Field(i)
 		fv := v.Field(i)
 
+		if _, ok := fv.Interface().(*url.URL); ok { // TODO refactor
+			fv.Set(reflect.ValueOf(request.URL))
+		}
+
 		for _, h := range handler {
 			tagValue := ft.Tag.Get(h.tag)
 
-			if tagValue == "-" || tagValue == "" {
+			if tagValue == "-" || tagValue == "" || !ft.IsExported() {
 				continue
-			}
-
-			if !ft.IsExported() {
-				panic(fmt.Sprintf("field [%s] is unexported", ft.Name))
 			}
 
 			var target reflect.Value
@@ -152,7 +152,7 @@ func handleStructFields(data interface{}, handler ...fieldHandler) error {
 
 				target = fv
 			case reflect.Struct:
-				err := handleStructFields(fv.Addr().Interface(), handler...)
+				err := handleStructFields(fv.Addr().Interface(), request, handler...)
 				if err != nil {
 					return err
 				}
@@ -204,7 +204,7 @@ func parseRequest(_ context.Context, data interface{}, r *http.Request, argsPlac
 		//}
 	}
 
-	err := handleStructFields(data,
+	err := handleStructFields(data, r,
 		fieldHandler{"header", func(tag string, v interface{}) error { return parseHeader(tag, v, r.Header) }},
 		fieldHandler{"query", func(tag string, v interface{}) error { return parseQuery(tag, v, r.URL) }},
 		fieldHandler{"args", func(tag string, v interface{}) error { return parseArgs(tag, v, argsPlace, args) }},
