@@ -162,7 +162,13 @@ func (r *Router[C, A]) renderSwagger(prefix string, opt SwaggerOpt) func(_ conte
 				continue
 			}
 
-			swagger.Paths.Add(rt.path[len(prefix):], apiEndpoint{
+			pp := rt.path[len(prefix):]
+
+			if pp == "" {
+				pp = "/"
+			}
+
+			swagger.Paths.Add(pp, apiEndpoint{
 				Get:    descriptionHandler(rt.handler.Get, &swagger.Definitions, false),
 				Post:   descriptionHandler(rt.handler.Post, &swagger.Definitions, true),
 				Put:    descriptionHandler(rt.handler.Put, &swagger.Definitions, true),
@@ -187,12 +193,15 @@ func (o *SwaggerOpt) fillDefault(prefix string) {
 	if o.Title == "" {
 		o.Title = "Some API"
 	}
+
 	if o.Version == "" {
 		o.Version = "v0.0"
 	}
+
 	if o.Description == "" {
 		o.Description = "Auto generated documentation"
 	}
+
 	if o.BasePath == "" {
 		o.BasePath = prefix
 	}

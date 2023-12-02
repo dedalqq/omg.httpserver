@@ -289,13 +289,16 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 			var request RQ
 
 			t := reflect.TypeOf(request)
-			if t.Kind() == reflect.Pointer { // TODO try support not pointer
-				request = reflect.New(t.Elem()).Interface().(RQ)
-			}
 
-			res := parseRequest(ctx, request, r, argsPlace, args)
-			if res != nil {
-				return res
+			if t != nil {
+				if t.Kind() == reflect.Pointer { // TODO try support not pointer
+					request = reflect.New(t.Elem()).Interface().(RQ)
+				}
+
+				res := parseRequest(ctx, request, r, argsPlace, args)
+				if res != nil {
+					return res
+				}
 			}
 
 			result, err := fn(ctx, c, a, request)
@@ -467,6 +470,11 @@ func definitionFromObject(t reflect.Type, p *parameters, desc string) *apiType {
 	case reflect.Bool:
 		return &apiType{
 			Type:        TypeBool,
+			Description: desc,
+		}
+	case reflect.Map:
+		return &apiType{
+			Type:        TypeObject,
 			Description: desc,
 		}
 	default:
