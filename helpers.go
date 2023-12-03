@@ -261,7 +261,9 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 
 	rqType = definitionFromObject(rqRef, &params, "")
 
-	if _, ok := (interface{})(rp).(NoContent); !ok {
+	switch (interface{})(rp).(type) {
+	case NoContent, *Swagger:
+	default:
 		rpType = definitionFromObject(rpRef, &params, "")
 	}
 
@@ -455,6 +457,12 @@ func definitionFromObject(t reflect.Type, p *parameters, desc string) *apiType {
 			Type:        TypeObject,
 			Description: desc,
 			Properties:  fields,
+		}
+	case reflect.Slice:
+		return &apiType{
+			Type:        TypeArray,
+			Description: desc,
+			Items:       definitionFromObject(t.Elem(), p, ""),
 		}
 	case reflect.String:
 		return &apiType{

@@ -2,6 +2,7 @@ package httpserver
 
 const (
 	TypeObject  = "object"
+	TypeArray   = "array"
 	TypeString  = "string"
 	TypeInteger = "integer"
 	TypeBool    = "boolean"
@@ -12,6 +13,7 @@ type apiType struct {
 	Description string              `json:"description,omitempty"`
 	Required    bool                `json:"required,omitempty"`
 	Format      string              `json:"format,omitempty"`
+	Items       *apiType            `json:"items,omitempty"`
 	Properties  OrderedMap[apiType] `json:"properties,omitempty"`
 }
 
