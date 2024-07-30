@@ -259,12 +259,12 @@ func Create[RQ, RP, A, C any](fn func(context.Context, C, A, RQ) (RP, error), op
 
 	var rqType, rpType *apiType
 
-	rqType = definitionFromObject(rqRef, &params, "")
+	//rqType = definitionFromObject(rqRef, &params, "") TODO support recursive schema
 
 	switch (interface{})(rp).(type) {
 	case NoContent, *Swagger:
 	default:
-		rpType = definitionFromObject(rpRef, &params, "")
+		//rpType = definitionFromObject(rpRef, &params, "") TODO support recursive schema
 	}
 
 	handler := &MethodHandler[C, A]{
